@@ -9,7 +9,6 @@
  *
  * It's the same as OneCell3TrParam2DegPolyHMM but the library size is fixed
  *
- * //this->paramsToEst = [beta, gamma, t]
  * this->paramsToEst = [beta, lambda, t]
  * this->fixedParams = [lib, alpha]
  */

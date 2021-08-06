@@ -17,13 +17,6 @@ OneCellFixLib3TrParam2DegPolyHMM::OneCellFixLib3TrParam2DegPolyHMM(std::vector<D
     this->totalLogEmissionLookup->push_back(gsl_matrix_alloc(currNumWindows, this->states->size())); // transposed
     gsl_matrix_set_zero((*this->totalLogEmissionLookup)[chrIdx]);
   }
-
-  /*// set fixedParams with library sizes
-  double totalAvgDiploidDepth = (*this->depths)[0]->getTotalDiploidDepth();
-  this->setLibScalingFactor(0, (*this->depths)[0]->getTotalTumorDepth() / totalAvgDiploidDepth);
-  //std::cout << "done with fixed ctor update cell 0" << std::endl;
-  this->setLibScalingFactor(1, (*this->depths)[1]->getTotalTumorDepth() / totalAvgDiploidDepth);
-  //std::cout << "done with fixed ctor update cell 1" << std::endl;*/
 }
 
 OneCellFixLib3TrParam2DegPolyHMM::~OneCellFixLib3TrParam2DegPolyHMM() {
@@ -91,23 +84,12 @@ void OneCellFixLib3TrParam2DegPolyHMM::setMeanVarianceFn(gsl_vector* meanVarianc
  * same as OneCell3TrParam2DegPolyHMM, but lib sizes are skipped
  */
 void OneCellFixLib3TrParam2DegPolyHMM::convertProbToParam(gsl_vector* dest, const gsl_vector* src) const {
-  //double d = (double) (*this->depths)[0]->maxWindowSize;
   double beta = gsl_vector_get(src, this->TRANSITION_PROB_START_IDX + 0);
   double lambda = gsl_vector_get(src, this->TRANSITION_PROB_START_IDX + 1);
-  //double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX) / d;
   double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
-
-  //double a = this->getAlpha();
-  //double c = (b * this->getKploidy() + g - 1);
-
-  //gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 0, log(-b * (1-2*a) * (double) this->getKploidy() / c)); // set y
-  //gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 1, log(-g * (1-2*a) / c)); // set z
-
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(-(d * t) / (d * t - 1))); // set T
 
   gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 0, log(beta)); // set y
   gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 1, log(lambda)); // set z
-
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(t)); // set T
 }
 
@@ -118,25 +100,16 @@ void OneCellFixLib3TrParam2DegPolyHMM::convertParamToProb(gsl_vector* dest, cons
   double y = gsl_vector_get(src, this->TRANSITION_PROB_START_IDX + 0);
   double z = gsl_vector_get(src, this->TRANSITION_PROB_START_IDX + 1);
   double T = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
-  //double a = this->getAlpha();
-  //double c = 1 - 2.0*a + exp(y) + exp(z);
 
-  //gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 0, exp(y) / ((double) this->getKploidy() * c)); // set beta
-  //gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 1, exp(z) / c); // set gamma
-  //c = 1.0 / (1 + exp(T));
-
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T) * c); // set t
   gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 0, exp(y)); // set beta
   gsl_vector_set(dest, this->TRANSITION_PROB_START_IDX + 1, exp(z)); // set lambda
-
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T)); // set t
 }
 
 /*
- * calls bfgs, returns a bestGuessHMM
+ * calls bfgs, returns calling object
  */
 OneCellFixLib3TrParam2DegPolyHMM* OneCellFixLib3TrParam2DegPolyHMM::bfgs(gsl_vector* initGuess, bool verbose) {
-  // create new HMM with the best guess parameters and return it
   OneCellFixLib3TrParam2DegPolyHMM* bestGuessHMM = this;
   gsl_vector* initGuessAsParams = gsl_vector_alloc(initGuess->size);
   this->convertProbToParam(initGuessAsParams, initGuess);
