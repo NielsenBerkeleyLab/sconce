@@ -15,10 +15,9 @@
  * This class is for making a collection of HMMs that jointly estimates beta and gammma across a given number of
  * tumor cells, where each HMM is independent of the other pairs (except for the shared parameters
  * and cell specific library size scaling factor (this is used every time a cell is used). Branch
- * lengths (t1/t2/t3/t/splitTime) are estimated for each HMM.
+ * lengths (t) are estimated for each HMM.
  *
  * Parameters are:
- *   - //3 transition parameters (alpha=P(adjacent CNA); beta=P(any CNA); gamma=P(back to diploid))
  *   - 3 rate parameters (alpha=P(adjacent CNA); beta=P(any CNA); lambda=P(event happens to both cells))
  *   - a library size scaling factor for each cell
  *   - branch lengths (3 branches between 2 cells, 1 scaling "branch" for 1 cell, or split time between 2 cells (given total branch lengths))
@@ -29,8 +28,6 @@ class AllCells3TrParam2DegPolyHMM : public Optimizable {
   private:
   protected:
     // protected ctors
-    //AllCells3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, std::vector<std::string>* sampleList, int maxPloidy);
-    //AllCells3TrParam2DegPolyHMM(const AllCells3TrParam2DegPolyHMM& otherAllCells3TrParam2DegPolyHMM);
     AllCells3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, std::vector<std::string>* sampleList, gsl_vector* fixedParams, int maxPloidy, int numSharedTrParamsToEst, int numFixedTrParams, int numFixedLibs, int numHMMs, int numBranchesToEst);
 
     // member variables
@@ -76,8 +73,6 @@ class AllCells3TrParam2DegPolyHMM : public Optimizable {
     void setSampleList(std::vector<std::string>* sampleList);
     virtual std::vector<gsl_vector*>* getBaumWelchParamResults() const;
     virtual void setBaumWelchParamResults(std::vector<gsl_vector*>* paramResults);
-    /*virtual void setLibScalingFactors(int cell0Idx, int cell1Idx, double lib0, double lib1);
-    virtual void setAllLibScalingFactors(int cellNumInPair, double libScalingFactor);*/
     virtual double getLibScalingFactor(int cellNum) const = 0;
     virtual double getAlpha() const;
     virtual void setAlpha(double alpha);
