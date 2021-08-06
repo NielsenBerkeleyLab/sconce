@@ -30,7 +30,6 @@ OneCell0TrParam2DegPolyHMM::~OneCell0TrParam2DegPolyHMM() {
  */
 double OneCell0TrParam2DegPolyHMM::setTransition(gsl_matrix* dest, gsl_vector* transitionParams) {
   double beta  = gsl_vector_get(this->fixedParams, this->FIXED_TRANSITION_PROB_START_IDX + 1);
-  //double gamma = gsl_vector_get(this->fixedParams, this->FIXED_TRANSITION_PROB_START_IDX + 2);
   double lambda = gsl_vector_get(this->fixedParams, this->FIXED_TRANSITION_PROB_START_IDX + 2);
 
   double t = gsl_vector_get(transitionParams, 0);
@@ -38,17 +37,13 @@ double OneCell0TrParam2DegPolyHMM::setTransition(gsl_matrix* dest, gsl_vector* t
   // save into paramsToEst
   gsl_vector_set(this->paramsToEst, this->BRANCH_LENGTH_START_IDX, gsl_vector_get(transitionParams, 0));
 
-  //return OneCell3TrParam2DegPolyHMM::setTransition(dest, this->getAlpha(), beta, gamma, t); // call parent class's setTransition helper method
   return OneCell3TrParam2DegPolyHMM::setTransition(dest, this->getAlpha(), beta, lambda, t); // call parent class's setTransition helper method
 }
 
 void OneCell0TrParam2DegPolyHMM::convertProbToParam(gsl_vector* dest, const gsl_vector* src) const {
-  //double d = (double) (*this->depths)[0]->maxWindowSize;
-  //double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX) / d;
   double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
   double s = gsl_vector_get(src, this->LIB_SIZE_SCALING_FACTOR_START_IDX);
 
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(-(d * t) / (d * t - 1))); // set T
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(t)); // set T
   gsl_vector_set(dest, this->LIB_SIZE_SCALING_FACTOR_START_IDX, log(s));
 }
@@ -60,8 +55,6 @@ void OneCell0TrParam2DegPolyHMM::convertParamToProb(gsl_vector* dest, const gsl_
   double T = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
   double w = gsl_vector_get(src, this->LIB_SIZE_SCALING_FACTOR_START_IDX);
 
-  //double c = 1.0 / (1 + exp(T));
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T) * c); // set t
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T)); // set t
   gsl_vector_set(dest, this->LIB_SIZE_SCALING_FACTOR_START_IDX, exp(w));
 }

@@ -7,7 +7,6 @@
  * One cell, all transition params (alpha/beta/gamma) are fixed. Estimate lib and t
  *
  * this->paramsToEst = [lib, t]
- * //this->fixedParams = [alpha, beta, gamma]
  * this->fixedParams = [alpha, beta, lambda]
  */
 class OneCell0TrParam2DegPolyHMM : public OneCell3TrParam2DegPolyHMM {
