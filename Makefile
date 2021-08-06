@@ -19,7 +19,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(PROG_NAME): $(OBJ_LIST)
-	$(LD) $(GSLFLAGS) $(BOOSTFLAGS) $(OBJ_LIST) -o $@
+	$(LD) $(OBJ_LIST) $(GSLFLAGS) $(BOOSTFLAGS) -o $@
 
 clean:
 	rm -f $(PROG_NAME) $(BUILD_DIR)/*.o
