@@ -37,7 +37,7 @@ DepthPair::DepthPair(std::string diploidFilename, std::string tumorFilename) {
   double variance;
   while(getline(diploid, diploidLine)) {
     // process diploid line
-    std::istringstream iss(diploidLine); // TODO make more memory efficient?
+    std::istringstream iss(diploidLine);
     iss >> chr >> start >> end >> depth >> variance;
     key = chr + ":" + std::to_string(start) + "-" + std::to_string(end);
 
@@ -67,13 +67,11 @@ DepthPair::DepthPair(std::string diploidFilename, std::string tumorFilename) {
     }
   }
 
-  //std::string tmpSimState; // Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
   std::vector<std::string>::iterator it = this->allRegions->begin();
   while(getline(tumor, tumorLine) && it != this->allRegions->end()) {
     // process tumor line
     std::istringstream iss(tumorLine);
     iss >> chr >> start >> end >> depth;
-    //iss >> chr >> start >> end >> depth >> tmpSimState; // Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
     key = chr + ":" + std::to_string(start) + "-" + std::to_string(end);
     if(key.compare(*it) != 0) {
       std::cerr << "Error: Regions in depth files are not equal. Exiting" << std::endl;
@@ -89,19 +87,6 @@ DepthPair::DepthPair(std::string diploidFilename, std::string tumorFilename) {
 
     // insert into appropriate depth map
     (*this->chrToTumorDepthMap)[chr]->push_back(depth);
-
-    /*// Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging. save into chrToTumorSimStateMap
-    std::unordered_map<std::string, std::vector<std::string>*>::iterator chrSimStateItr = this->chrToTumorSimStateMap->find(chr);
-    if(chrSimStateItr == this->chrToTumorSimStateMap->end()) {
-      this->chrToTumorSimStateMap->insert(make_pair(chr, new std::vector<std::string>()));
-    }
-    //(*this->chrToTumorSimStateMap)[chr]->push_back(tmpSimState);
-    std::string* tmpSimCopy = new std::string(tmpSimState);
-    (*this->chrToTumorSimStateMap)[chr]->push_back(*tmpSimCopy);
-    //std::cout << (*(*this->chrToTumorSimStateMap)[chr])[(*(*this->chrToTumorSimStateMap)[chr]).size() - 1] << std::endl;
-    */
-
-
 
     if(this->maxTumorDepth < depth) {
       this->maxTumorDepth = depth;
@@ -158,13 +143,11 @@ DepthPair::DepthPair(DepthPair* otherDepths, std::string tumorFilename) {
   long long int end;
   double depth; // number of reads that overlap this region
 
-  //std::string tmpSimState; // Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
   std::vector<std::string>::iterator it = this->allRegions->begin();
   while(getline(tumor, tumorLine) && it != this->allRegions->end()) {
     // process tumor line
     std::istringstream iss(tumorLine);
     iss >> chr >> start >> end >> depth;
-    //iss >> chr >> start >> end >> depth >> tmpSimState; // Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
     key = chr + ":" + std::to_string(start) + "-" + std::to_string(end);
     if(key.compare(*it) != 0) {
       std::cerr << "Error: Regions in depth files are not equal. Exiting" << std::endl;
@@ -180,17 +163,6 @@ DepthPair::DepthPair(DepthPair* otherDepths, std::string tumorFilename) {
 
     // insert into appropriate depth map
     (*this->chrToTumorDepthMap)[chr]->push_back(depth);
-
-    /*// Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging. save into chrToTumorSimStateMap
-    std::unordered_map<std::string, std::vector<std::string>*>::iterator chrSimStateItr = this->chrToTumorSimStateMap->find(chr);
-    if(chrSimStateItr == this->chrToTumorSimStateMap->end()) {
-      this->chrToTumorSimStateMap->insert(make_pair(chr, new std::vector<std::string>()));
-    }
-    //(*this->chrToTumorSimStateMap)[chr]->push_back(tmpSimState);
-    std::string* tmpSimCopy = new std::string(tmpSimState);
-    (*this->chrToTumorSimStateMap)[chr]->push_back(*tmpSimCopy);
-    //std::cout << (*this->chrToTumorSimStateMap)[chr] << std::endl;*/
-
 
     if(this->maxTumorDepth < depth) {
       this->maxTumorDepth = depth;
@@ -245,7 +217,6 @@ DepthPair::DepthPair(int numWindows, int numChr, int windowSize) {
       long long int end = (j+1) * windowSize;
       // key is chr#:start-end
       std::string key = chr + ":" + std::to_string(start) + "-" + std::to_string(end);
-      //std::cerr << key << std::endl;
       this->allRegions->push_back(key);
       (*this->regions)[chr]->push_back(key);
       (*this->chrToDiploidDepthMap)[chr]->push_back(0);
@@ -256,7 +227,6 @@ DepthPair::DepthPair(int numWindows, int numChr, int windowSize) {
 }
 
 // ctor for simulation for subsequent cells. shareDiploid should always be true, here as a safety measure to not accidentally call copy ctor
-//DepthPair::DepthPair(DepthPair* otherDepths, bool shareDiploid) {
 DepthPair::DepthPair(bool shareDiploid, DepthPair* otherDepths) {
   this->diploidLibrarySize = otherDepths->diploidLibrarySize;
   this->tumorLibrarySize = otherDepths->tumorLibrarySize;
@@ -419,14 +389,10 @@ DepthPair::~DepthPair() {
   delete this->chrVec;
   delete this->allRegions;
   for(std::unordered_map<std::string, std::vector<std::string>*>::iterator it = this->regions->begin(); it != this->regions->end(); ++it) {
-    //delete (*it).second;
-    //(*it).second->clear();
     delete (*it).second;
   }
   delete this->regions;
   for(std::unordered_map<std::string, std::vector<double>*>::iterator it = this->chrToDiploidDepthMap->begin(); it != this->chrToDiploidDepthMap->end(); ++it) {
-    //std::cerr << "deleting in dip depth mat" << std::endl;
-    //(*it).second->clear();
     delete (*it).second;
   }
 
@@ -434,32 +400,27 @@ DepthPair::~DepthPair() {
     delete this->chrToDiploidDepthMap;
   }
   for(std::unordered_map<std::string, std::vector<double>*>::iterator it = this->chrToDiploidVarMap->begin(); it != this->chrToDiploidVarMap->end(); ++it) {
-    //(*it).second->clear();
     delete (*it).second;
   }
   if(this->chrToDiploidVarMap != nullptr) {
     delete this->chrToDiploidVarMap;
   }
   for(std::unordered_map<std::string, std::vector<double>*>::iterator it = this->chrToTumorDepthMap->begin(); it != this->chrToTumorDepthMap->end(); ++it) {
-    //(*it).second->clear();
     delete (*it).second;
   }
   delete this->chrToTumorDepthMap;
 
   for(std::unordered_map<std::string, std::vector<std::string>*>::iterator it = this->chrToDiploidSimStateMap->begin(); it != this->chrToDiploidSimStateMap->end(); ++it) {
-    //(*it).second->clear();
     delete (*it).second;
   }
   delete this->chrToDiploidSimStateMap;
   for(std::unordered_map<std::string, std::vector<std::string>*>::iterator it = this->chrToTumorSimStateMap->begin(); it != this->chrToTumorSimStateMap->end(); ++it) {
-    //(*it).second->clear();
     delete (*it).second;
   }
   delete this->chrToTumorSimStateMap;
 
   if(this->chrToViterbiPathMap != nullptr) {
     for(std::unordered_map<std::string, std::vector<int>*>::iterator it = this->chrToViterbiPathMap->begin(); it != this->chrToViterbiPathMap->end(); ++it) {
-      //(*it).second->clear();
       delete (*it).second;
     }
     delete this->chrToViterbiPathMap;

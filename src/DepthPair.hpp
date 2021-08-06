@@ -21,7 +21,6 @@ class DepthPair {
     DepthPair(std::string diploidFilename, std::string tumorFilename);
     DepthPair(DepthPair* otherDepths, std::string tumorFilename);
     DepthPair(int numWindows, int numChr = 1, int windowSize = 250000); // ctor for simulation
-    //DepthPair(DepthPair* otherDepths, bool shareDiploid); // ctor for simulation for subsequent cells
     DepthPair(bool shareDiploid, DepthPair* otherDepths); // ctor for simulation for subsequent cells
     DepthPair(std::string windowsFilename); // ctor for simulation with a windows file (ie if want to match a reference genome)
     DepthPair(const DepthPair& other);
