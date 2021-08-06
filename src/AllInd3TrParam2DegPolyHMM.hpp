@@ -21,7 +21,6 @@
  *
  * Because each cell is represented in exactly one HMM, all cellIdx and hmmIdx variables are the same.
  *
- * //this->paramsToEst = [lib0, lib1, ..., libN, beta, gamma, t_cell0, t_cell1, ..., t_cellN]
  * this->paramsToEst = [lib0, lib1, ..., libN, beta, lambda, t_cell0, t_cell1, ..., t_cellN]
  * this->fixedParams = [alpha]
  */
