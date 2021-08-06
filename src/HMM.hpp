@@ -8,15 +8,7 @@
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_permutation.h>
-// http://www.boost.org/doc/libs/1_67_0/libs/math/doc/html/math_toolkit/dist_ref/dists/negative_binomial_dist.html
-// http://www.boost.org/doc/libs/1_67_0/libs/math/doc/html/math_toolkit/dist_ref/dists/poisson_dist.html
 #include <boost/math/distributions.hpp>
-//#include <boost/random.hpp>
-//#include <boost/random/uniform_real.hpp>
-//#include <boost/random/variate_generator.hpp>
-//// https://www.boost.org/doc/libs/1_70_0/libs/random/example/random_demo.cpp
-//// This is a typedef for a random number generator. Try boost::mt19937 or boost::ecuyer1988 instead of boost::minstd_rand
-//typedef boost::minstd_rand base_generator_type;
 
 #include <iostream>
 #include <string>
@@ -54,7 +46,6 @@ class HMM : public Optimizable {
     gsl_matrix* transition;
     gsl_vector* initProb;
     gsl_vector* meanVarianceCoefVec; // intercept, slope (first order), second order coef, ...
-    //std::vector<std::vector<std::string*>*>* transitionStrings;
     int maxNumBFGSStarts;
 
     // for continuous time
@@ -90,16 +81,12 @@ class HMM : public Optimizable {
     gsl_permutation* ratePerm;
     gsl_matrix* rateInverseMat;
 
-    //std::vector<double>* diploidDepthPloidyPreCalc; // vec of ploidy * diploidDepth / 2. used to speed up getEmissionProb calcs
     void allocIntermediates();
-    //void fillDiploidDepthPloidyPreCalc();
 
     // constructors (protected so only derived classes can call)
     HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransitionParamsToEst, int numCells, int numBranches, int maxPloidy, int numFixedTrParams, int numFixedLibs);
-    //HMM(const HMM& otherHMM);
 
     // protected helper methods
-    //void bfgs(gsl_vector* initGuess, HMM* bestGuessHMM, bool verbose = true) const; // bestGuessHMM is the dest HMM to copy into; should be specific to the class
     int getRandStateIdx(double p, int fromStateIdx) const; // helper method to get a state idx according to prob p
     int getRandStateIdx(double p, gsl_vector* probVec) const;
     double setTimeDepMatrixP(gsl_matrix* destMat, double time);
@@ -123,8 +110,7 @@ class HMM : public Optimizable {
     const int BRANCH_LENGTH_START_IDX;
     const int FIXED_TRANSITION_PROB_START_IDX;
 
-    static const int DEPTH_ERROR_SCALING = 50; // for emission prob. lambda_i = ___ + errorTerm, where errorTerm = diploidDepth_i / DEPTH_ERROR_SCALING. Super hacky to set here, should prob move to an external file of constants
-    //static const int DEPTH_ERROR_SCALING = 100; // for emission prob. lambda_i = ___ + errorTerm, where errorTerm = diploidDepth_i / DEPTH_ERROR_SCALING. Super hacky to set here, should prob move to an external file of constants
+    static const int DEPTH_ERROR_SCALING = 50; // for emission prob. lambda_i = ___ + errorTerm, where errorTerm = diploidDepth_i / DEPTH_ERROR_SCALING
 
     // accessors and mutators
     std::vector<DepthPair*>* getDepths();
@@ -135,7 +121,6 @@ class HMM : public Optimizable {
     std::set<int>* getAlphabet() const;
     void setTransition(gsl_matrix* transition);
     virtual double setTransition();
-    //void setRateMatrixQ(gsl_vector* rateParams);
     void setRateMatrixQ(double alpha, double beta, double lambda);
     double setTimeDepMatrixP(double time);
     gsl_matrix* getTransition() const;
@@ -172,7 +157,6 @@ class HMM : public Optimizable {
     virtual double setTransition(gsl_vector* transitionParams); // always saves into this->transition
 
     // functions that change based on model
-    //virtual double getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int windowIdx, int cellIdx) = 0;
     virtual double getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) = 0;
     virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) = 0; // slightly faster to cache currChrDepthsVec; cellDepth = (*(*currChrDepthsVec)[cellIdx])[depthIdx];
     virtual void simulate() = 0;
@@ -196,13 +180,10 @@ class HMM : public Optimizable {
     virtual double checkStateValidity(double epsilon = 1e-8) const override; // should check if transition matrices are ok
     virtual double checkStateValidity(gsl_matrix* mat, double epsilon = 1e-8) const; // should check if passed matrix is ok
     virtual double checkForTransientStates(); // check if states only show up transiently
+    virtual void miscFunctions() override;
 
     // destructor
     virtual ~HMM();
-
-
-
-    virtual void miscFunctions() override;
 
 };
 

@@ -5,7 +5,6 @@
  * constructors and destructor
  ********
  */
-//HMM::HMM(std::vector<DepthPair*>* depths, int numTransitionParamsToEst, int numCells, int numBranches, int maxPloidy) :
 HMM::HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransitionParamsToEst, int numCells, int numBranches, int maxPloidy, int numFixedTrParams, int numFixedLibs) :
                                         MAX_PLOIDY(maxPloidy),
                                         NUM_CELLS(numCells),
@@ -15,7 +14,6 @@ HMM::HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransi
                                         NUM_FIXED_LIBS(numFixedLibs),
                                         NUM_FIXED_TRANSITION_PARAMS(numFixedTrParams),
                                         LIB_SIZE_SCALING_FACTOR_START_IDX(0),
-                                        //TRANSITION_PROB_START_IDX(numCells),
                                         TRANSITION_PROB_START_IDX(numCells - numFixedLibs), // libs go first, estimating one for each "unfixed lib" cell
                                         BRANCH_LENGTH_START_IDX(this->TRANSITION_PROB_START_IDX + numTransitionParamsToEst),
                                         FIXED_TRANSITION_PROB_START_IDX(numFixedLibs) // if no libs are fixed, then this starts at 0
@@ -42,14 +40,11 @@ HMM::HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransi
 
   this->states = createStateSpace(this->NUM_CELLS, this->MAX_PLOIDY);
   this->adjBinLabels = createStateSpace(2, this->MAX_PLOIDY);
-  //this->transitionStrings = nullptr;
   this->rateMatrixStrings = nullptr;
 
   this->transition = gsl_matrix_alloc(this->states->size(), this->states->size());
   gsl_matrix_set_zero(this->transition);
 
-  //this->rateMatrixQ = gsl_matrix_alloc(this->states->size(), this->states->size());
-  //this->timeDepMatrixP = gsl_matrix_alloc(this->states->size(), this->states->size());
   // contiuous time matrices are looking at adj bins, so the dimensions are (k+1,k+1) x (k+1,k+1)
   int contTimeMatSize = (this->MAX_PLOIDY + 1) * (this->MAX_PLOIDY + 1);
   this->rateMatrixQ    = gsl_matrix_alloc(contTimeMatSize, contTimeMatSize);
@@ -66,14 +61,10 @@ HMM::HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransi
 
   // intermediates
   this->allocIntermediates();
-  //this->setMeanVarianceFn(gsl_vector_alloc(3)); // intercept, slope, first order coef TODO move this into subclass
-  this->meanVarianceCoefVec = nullptr; // Thu 23 Jul 2020 05:44:08 PM PDT setMeanVarianceFn changes ptrs
+  this->meanVarianceCoefVec = nullptr;
 
   // params to estimate with BFGS: a library scaling factor for each cell and the transition params
-  //std::cout << "IN HMM CTOR: " << this->NUM_CELLS << ", " << numFixedLibs << ", " << this->NUM_TRANSITION_PARAMS_TO_EST << ", " << numFixedTrParams << ", " << this->NUM_BRANCH_LENGTHS_TO_EST << std::endl;
-  //this->paramsToEst = gsl_vector_alloc(this->NUM_CELLS - numFixedLibs + this->NUM_TRANSITION_PARAMS_TO_EST - numFixedTrParams + this->NUM_BRANCH_LENGTHS_TO_EST);
   this->paramsToEst = gsl_vector_alloc(this->NUM_CELLS - numFixedLibs + this->NUM_TRANSITION_PARAMS_TO_EST + this->NUM_BRANCH_LENGTHS_TO_EST);
-  //gsl_vector_set_zero(this->paramsToEst);
   gsl_vector_set_all(this->paramsToEst, 1.0);
   if(fixedParams == nullptr) {
     this->fixedParams = gsl_vector_alloc(numFixedLibs + numFixedTrParams);
@@ -85,7 +76,6 @@ HMM::HMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int numTransi
   this->probParamConversionVec = gsl_vector_alloc(this->getNumParamsToEst());
 }
 void HMM::allocIntermediates() {
-  //std::cerr << "ALLOCATING INTERMEDIATES" << std::endl;
   this->prevForwardCol = gsl_vector_alloc(this->states->size());
   this->currForwardCol = gsl_vector_alloc(this->states->size());
   this->nextBackwardCol = gsl_vector_alloc(this->states->size());
@@ -118,11 +108,6 @@ void HMM::allocIntermediates() {
   for(unsigned int i = 0; i < chrVec->size(); i++) {
     currChr = (*chrVec)[i];
     currNumWindows = (*(*this->depths)[0]->regions)[currChr]->size();
-    //this->forwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-    //this->backwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-    //this->forBackMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-    //this->backTraceVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-    //this->scalingVecVec->push_back(gsl_vector_alloc(currNumWindows+1));
     this->forwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
     this->backwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
     this->forBackMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
@@ -135,153 +120,13 @@ void HMM::allocIntermediates() {
     gsl_vector_set_zero((*this->scalingVecVec)[i]);
   }
 
-  //this->fillDiploidDepthPloidyPreCalc();
   this->numTransitionsMat = gsl_matrix_alloc(this->transition->size1, this->transition->size2);
   gsl_matrix_set_zero(this->numTransitionsMat);
 
 }
 
-/*void HMM::fillDiploidDepthPloidyPreCalc() {
-  DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
-  this->diploidDepthPloidyPreCalc = new std::vector<double>(firstDepthPair->numWindows * (this->MAX_PLOIDY + 1));
-  int preCalcIdx = 0;
-  int currPloidy = -1;
-  double currDiploidDepth = -1;
-  double diploidPloidyProd = 0;
-  std::vector<double>* currDiploidDepthsVec = nullptr;
-  // for each chr
-  for(std::vector<std::string>::iterator chrItr = firstDepthPair->chrVec->begin(); chrItr != firstDepthPair->chrVec->end(); ++chrItr) {
-    currDiploidDepthsVec = (*firstDepthPair->chrToDiploidDepthMap)[*chrItr];
-    // for each region in chr
-    for(unsigned int dipDepthVecIdx = 0; dipDepthVecIdx < currDiploidDepthsVec->size(); dipDepthVecIdx++) {
-      currDiploidDepth = (*currDiploidDepthsVec)[dipDepthVecIdx];
-      // for each possible ploidy, calc ploidy * diploidDepth / 2
-      for(currPloidy = 0; currPloidy <= this->MAX_PLOIDY; currPloidy++) {
-        diploidPloidyProd = currPloidy * currDiploidDepth / 2.0;
-        (*this->diploidDepthPloidyPreCalc)[preCalcIdx] = diploidPloidyProd;
-        preCalcIdx++;
-      }
-    }
-  }
-  //for(int i = 0; i < this->diploidDepthPloidyPreCalc->size(); i++) {
-  //  std::cout << (*this->diploidDepthPloidyPreCalc)[i] << ", ";
-  //}
-  //std::cout << std::endl;
-}*/
-
-//// deep copy ctor
-//HMM::HMM(const HMM& otherHMM) :
-//        Optimizable(otherHMM),
-//        MAX_PLOIDY(otherHMM.MAX_PLOIDY),
-//        NUM_CELLS(otherHMM.NUM_CELLS),
-//        NUM_LIBS_TO_EST(otherHMM.NUM_LIBS_TO_EST),
-//        NUM_TRANSITION_PARAMS_TO_EST(otherHMM.NUM_TRANSITION_PARAMS_TO_EST),
-//        NUM_BRANCH_LENGTHS_TO_EST(otherHMM.NUM_BRANCH_LENGTHS_TO_EST),
-//        NUM_FIXED_LIBS(otherHMM.NUM_FIXED_LIBS),
-//        NUM_FIXED_TRANSITION_PARAMS(otherHMM.NUM_FIXED_TRANSITION_PARAMS),
-//        LIB_SIZE_SCALING_FACTOR_START_IDX(otherHMM.LIB_SIZE_SCALING_FACTOR_START_IDX),
-//        TRANSITION_PROB_START_IDX(otherHMM.TRANSITION_PROB_START_IDX),
-//        BRANCH_LENGTH_START_IDX(otherHMM.BRANCH_LENGTH_START_IDX),
-//        FIXED_TRANSITION_PROB_START_IDX(otherHMM.FIXED_TRANSITION_PROB_START_IDX) {
-//  //std::cout << "IN HMM DEEP COPY CTOR. BRANCH_LENGTH_START_IDX: " << this->BRANCH_LENGTH_START_IDX << std::endl;
-//  // member variables
-//  this->depths = new std::vector<DepthPair*>(*(otherHMM.depths)); // TODO not sure correct copy ctor is called here
-//  this->states = new std::vector<std::string>(*(otherHMM.states));
-//  this->alphabet = new std::set<int>(*(otherHMM.alphabet));
-//
-//  gsl_matrix* mat = otherHMM.getTransition();
-//  this->transition = gsl_matrix_alloc(mat->size1, mat->size2);
-//  gsl_matrix_memcpy(this->transition, mat);
-//
-//  this->generator = nullptr; // TODO what's a good way to copy seed info? is it worth it?
-//
-//  this->optimSuccess = false;
-//
-//  // make a copy of transitionStrings
-//  std::string* currTrStr = nullptr;
-//  this->transitionStrings = new std::vector<std::vector<std::string*>*>(this->states->size());
-//  for(unsigned int i = 0; i < this->states->size(); i++) {
-//    (*this->transitionStrings)[i] = new std::vector<std::string*>(this->states->size());
-//    for(unsigned int j = 0; j < this->states->size(); j++) {
-//      currTrStr = new std::string(*(*(*otherHMM.transitionStrings)[i])[j]);
-//      (*(*this->transitionStrings)[i])[j] = currTrStr;
-//    }
-//  }
-//
-//  gsl_vector* vec = otherHMM.getInitProb();
-//  this->initProb = gsl_vector_alloc(vec->size);
-//  gsl_vector_memcpy(this->initProb, vec);
-//
-//  // intermediates
-//  this->forwardMatVec = new std::vector<gsl_matrix*>();
-//  this->backwardMatVec = new std::vector<gsl_matrix*>();
-//  this->forBackMatVec = new std::vector<gsl_matrix*>();
-//  this->backTraceVec = new std::vector<gsl_matrix*>();
-//  this->scalingVecVec = new std::vector<gsl_vector*>();
-//  std::string currChr;
-//  int currNumWindows = -1;
-//  std::vector<std::string>* chrVec = this->getChrVec();
-//
-//  for(unsigned int i = 0; i < chrVec->size(); i++) {
-//    currChr = (*chrVec)[i];
-//    currNumWindows = (*(*this->depths)[0]->regions)[currChr]->size();
-//    //this->forwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-//    //this->backwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-//    //this->forBackMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-//    //this->backTraceVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows+1));
-//    this->forwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
-//    this->backwardMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
-//    this->forBackMatVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
-//    this->backTraceVec->push_back(gsl_matrix_alloc(this->states->size(), currNumWindows));
-//    this->scalingVecVec->push_back(gsl_vector_alloc(currNumWindows+1));
-//    gsl_matrix_set_zero((*this->forwardMatVec)[i]);
-//    gsl_matrix_set_zero((*this->backwardMatVec)[i]);
-//    gsl_matrix_set_zero((*this->forBackMatVec)[i]);
-//    gsl_matrix_set_zero((*this->backTraceVec)[i]);
-//    gsl_vector_set_zero((*this->scalingVecVec)[i]);
-//  }
-//
-//  this->prevForwardCol = gsl_vector_alloc(this->states->size());
-//  this->currForwardCol = gsl_vector_alloc(this->states->size());
-//  this->nextBackwardCol = gsl_vector_alloc(this->states->size());
-//  this->currBackwardCol = gsl_vector_alloc(this->states->size());
-//  this->transitionTranspose = gsl_matrix_alloc(this->transition->size1, this->transition->size2);
-//  int numSteadStateEVals = this->transitionTranspose->size1;
-//  this->ssEval = gsl_vector_complex_alloc(numSteadStateEVals);
-//  this->ssEvec = gsl_matrix_complex_alloc(numSteadStateEVals, numSteadStateEVals);
-//  gsl_vector_complex_memcpy(this->ssEval, otherHMM.eval);
-//  gsl_matrix_complex_memcpy(this->ssEvec, otherHMM.evec);
-//  this->ssEigenWorkspace = gsl_eigen_nonsymmv_alloc(numSteadStateEVals);
-//
-//  int numRateEvals = this->rateMatrixQ->size1;
-//  this->rateEval = gsl_vector_complex_alloc(numRateEvals);
-//  this->rateEvec = gsl_matrix_complex_alloc(numRateEvals, numRateEvals);
-//  this->rateEigenWorkspace = gsl_eigen_nonsymmv_alloc(numRateEvals);
-//  this->rateRealEvecMat = gsl_matrix_alloc(numRateEvals, numRateEvals);
-//  this->rateDiagMat = gsl_matrix_alloc(numRateEvals, numRateEvals);
-//  this->rateLUdecompMat = gsl_matrix_alloc(numRateEvals, numRateEvals);
-//  this->ratePerm = gsl_permutation_alloc(numRateEvals);
-//  this->rateInverseMat = gsl_matrix_alloc(numRateEvals, numRateEvals);
-//
-//  this->meanVarianceCoefVec = gsl_vector_alloc(otherHMM.meanVarianceCoefVec->size);
-//  gsl_vector_memcpy(this->meanVarianceCoefVec, otherHMM.meanVarianceCoefVec);
-//
-//  //this->diploidDepthPloidyPreCalc = new std::vector<double>(*(otherHMM.diploidDepthPloidyPreCalc));
-//
-//  /*// params to estimate with BFGS
-//  this->paramsToEst = gsl_vector_alloc(otherHMM.getNumParamsToEst());
-//  gsl_vector_memcpy(this->paramsToEst, otherHMM.paramsToEst);
-//  this->fixedParams = gsl_vector_alloc(otherHMM.fixedParams->size);
-//  gsl_vector_memcpy(this->fixedParams, otherHMM.fixedParams);
-//  this->probParamConversionVec = gsl_vector_alloc(this->getNumParamsToEst());*/ // Wed 12 Feb 2020 05:05:17 PM PST set in Optimizable deep copy ctor
-//
-//  this->numTransitionsMat = gsl_matrix_alloc(this->transition->size1, this->transition->size2);
-//  gsl_matrix_memcpy(this->numTransitionsMat, otherHMM.numTransitionsMat);
-//}
-
 // destructor
 HMM::~HMM() {
-  // TODO fix the DepthPair destructor. something to do with sharing data structures, probably
   for(std::vector<DepthPair*>::iterator it = this->depths->begin(); it != this->depths->end(); ++it) {
     delete *it;
   }
@@ -289,15 +134,6 @@ HMM::~HMM() {
   gsl_matrix_free(this->transition);
   gsl_matrix_free(this->rateMatrixQ);
   gsl_matrix_free(this->timeDepMatrixP);
-  /*for(unsigned int i = 0; i < this->states->size(); i++) {
-    for(unsigned int j = 0; j < this->states->size(); j++) {
-      delete (*(*this->transitionStrings)[i])[j];
-    }
-    delete (*this->transitionStrings)[i];
-  }
-  delete this->transitionStrings;*/
-  //for(unsigned int i = 0; i < this->states->size(); i++) {
-  //  for(unsigned int j = 0; j < this->states->size(); j++) {
   for(unsigned int i = 0; i < this->rateMatrixQ->size1; i++) {
     for(unsigned int j = 0; j < this->rateMatrixQ->size2; j++) {
       delete (*(*this->rateMatrixStrings)[i])[j];
@@ -388,29 +224,22 @@ double HMM::setTransition() {
   // subset out just transition probs from paramsToEst
   gsl_vector* tmpTrProbs = gsl_vector_alloc(this->NUM_TRANSITION_PARAMS_TO_EST + this->NUM_BRANCH_LENGTHS_TO_EST);
   int tmpTrProbsIdx = 0;
-  //printRowVector(this->paramsToEst);
   for(int i = 0; i < this->NUM_TRANSITION_PARAMS_TO_EST; i++) {
-    //std::cout << "from: " << TRANSITION_PROB_START_IDX + i  << " to: " << tmpTrProbsIdx << std::endl;
     gsl_vector_set(tmpTrProbs, tmpTrProbsIdx, gsl_vector_get(this->paramsToEst, TRANSITION_PROB_START_IDX + i));
     tmpTrProbsIdx++;
   }
   for(int i = 0; i < this->NUM_BRANCH_LENGTHS_TO_EST; i++) {
-    //std::cout << "from: " << BRANCH_LENGTH_START_IDX + i  << " to: " << tmpTrProbsIdx << std::endl;
     gsl_vector_set(tmpTrProbs, tmpTrProbsIdx, gsl_vector_get(this->paramsToEst, BRANCH_LENGTH_START_IDX + i));
     tmpTrProbsIdx++;
   }
-  //printRowVector(tmpTrProbs);
   double status = this->setTransition(tmpTrProbs); // call subclass overridden version
-  /*if(status != GSL_SUCCESS) {
-    std::cerr << "HMM::setTransition caught nan status, returning nan" << std::endl;
-  }*/
   gsl_vector_free(tmpTrProbs);
   return status;
 }
+
 // always saves into this->transition; delegates to subclass
 double HMM::setTransition(gsl_vector* transitionParams) {
   double status = this->setTransition(this->transition, transitionParams);
-  //std::cout << "HMM::setTransition this->setTransition(this->transition, transitionParams) STATUS: " << status << std::endl;
   if(status != GSL_SUCCESS) {
     return status;
   }
@@ -427,23 +256,14 @@ double HMM::setTransition(gsl_vector* transitionParams) {
  *
  * rateParams = [alpha, beta, lambda]
  */
-//void HMM::setRateMatrixQ(gsl_vector* rateParams) {
 void HMM::setRateMatrixQ(double alpha, double beta, double lambda) {
-  //double alpha = gsl_vector_get(rateParams, 0);
-  //double beta = gsl_vector_get(rateParams, 1);
-  //double lambda = gsl_vector_get(rateParams, 2);
-
   // if haven't saved the string represetation of the rate matrix yet, save it now
   bool saveStrs = false;
   std::string* currTrStr = nullptr;
   if(this->rateMatrixStrings == nullptr) {
     saveStrs = true;
-    //this->rateMatrixStrings = new std::vector<std::vector<std::string*>*>(this->states->size());
-    //for(unsigned int i = 0; i < this->states->size(); i++) {
     this->rateMatrixStrings = new std::vector<std::vector<std::string*>*>(this->rateMatrixQ->size1);
     for(unsigned int i = 0; i < this->rateMatrixQ->size1; i++) {
-      //(*this->rateMatrixStrings)[i] = new std::vector<std::string*>(this->states->size());
-      //for(unsigned int j = 0; j < this->states->size(); j++) {
       (*this->rateMatrixStrings)[i] = new std::vector<std::string*>(this->rateMatrixQ->size2);
       for(unsigned int j = 0; j < this->rateMatrixQ->size2; j++) {
         currTrStr = new std::string();
@@ -461,7 +281,6 @@ void HMM::setRateMatrixQ(double alpha, double beta, double lambda) {
   int toI = 0;
   int toJ = 0;
   double currRate = 0;
-  //for(unsigned int row = 0; row < this->states->size(); row++) {
   for(unsigned int row = 0; row < this->rateMatrixQ->size1; row++) {
     frI = getIndvPloidyFromStateIdx(0, row);
     frJ = getIndvPloidyFromStateIdx(1, row);
@@ -480,24 +299,12 @@ void HMM::setRateMatrixQ(double alpha, double beta, double lambda) {
         continue;
       }
 
-      /*// Thu 21 Jan 2021 11:58:47 AM PST
-      // if in a 0 state, can't get out of it (ie if you lose a segment, can't duplicate nothing into something)
-      // ex 1,0 -> 1,1
-      //    0,2 -> 1,2
-      if((frJ == 0 && toJ != 0) || (frI == 0 && toI != 0)) { // TODO if we do this, then need to have some way of accounting for 0,0 -> 0,0 being an absorbing state, since that makes the matrix noninvertible (necessary to calculate the transition matrix)
-        currRate = 0;
-        if(saveStrs) {
-          *currTrStr += "0)";
-        }
-      }*/
       // if move in tandem (include lambda term)
       // ex 0,1 -> 1,2  (+1)
       //    1,0 -> 2,1  (+1)
       //    2,3 -> 0,1  (-2)
       //    3,2 -> 1,0  (-2)
-      //std::cout << row << "," << col << ": (" << frI << "," << frJ << ")->(" << toI << "," << toJ << ")\t" << frI-toI << ", " << frJ - toJ << ", " <<toI - frI << ", " <<toJ - frJ << std::endl;
       if((frI - toI) == (frJ - toJ)){// || (toI - frI) == (toJ - frJ)) {
-        //std::cout << frI-toI << ", " << frJ - toJ << ", " <<toI - frI << ", " <<toJ - frJ << std::endl;
         // move only one in tandem (include alpha term)
         if(std::abs(frI - toI) == 1) {
           currRate += alpha;
@@ -511,7 +318,6 @@ void HMM::setRateMatrixQ(double alpha, double beta, double lambda) {
         if(saveStrs) {
           *currTrStr += "b)*L";
         }
-        //std::cout << "lambda term: (" << frI << "," << frJ << ")->(" << toI << "," << toJ << ")" << std::endl;
       }
       // else only one bin moves
       else if(frI == toI || frJ == toJ) {
@@ -521,7 +327,6 @@ void HMM::setRateMatrixQ(double alpha, double beta, double lambda) {
           if(saveStrs) {
             *currTrStr += "a+";
           }
-      //std::cout << row << "," << col << ": (" << frI << "," << frJ << ")->(" << toI << "," << toJ << ")\t" << frI-toI << ", " << frJ - toJ << ", " <<toI - frI << ", " <<toJ - frJ << std::endl;
         }
         // add beta term
         currRate += beta;
@@ -562,7 +367,6 @@ double HMM::setTimeDepMatrixP(gsl_matrix* destMat, double time) {
   double status = matrixExponential(destMat, this->rateMatrixQ, time, this->rateEigenWorkspace, this->rateEval, this->rateEvec, this->rateRealEvecMat, this->rateDiagMat, this->rateLUdecompMat, this->ratePerm, this->rateInverseMat);
 
   if(status != GSL_SUCCESS) {
-    //std::cerr << "HMM::setTimeDepMatrixP matrixExponential failed, returning nan" << std::endl;
     return status;
   }
 
@@ -600,11 +404,9 @@ gsl_matrix* HMM::getNumTransitionsMat() const {
   return this->numTransitionsMat;
 }
 int HMM::getKploidy() const {
-  //return (int) this->transition->size2 - 1; // matrix goes from 0 to k-ploid
   return this->MAX_PLOIDY;
 }
 void HMM::setInitProb(gsl_vector* initProb) {
-  //this->initProb = initProb;
   gsl_vector_memcpy(this->initProb, initProb);
 }
 gsl_vector* HMM::getInitProb() const {
@@ -617,13 +419,7 @@ void HMM::setMeanVarianceFn(gsl_vector* meanVarianceCoefVec) {
   this->meanVarianceCoefVec = meanVarianceCoefVec;
 }
 gsl_vector* HMM::createMeanVarianceCoefVec() {
-  // Wed 25 Apr 2018 11:44:01 AM PDT
-  // according to Navin_Nature2011/fitLikelihood.R with "diploidBins.q20.adaptTr.qualTr.dusted.sorted.noDups.overallMinLibFALSE.normCov_250kb/diploidBinsVarMeanNormLibSize_250kb.txt", without lm outliers, requiring at least 5 reads (fitNoLmOutliers_poly2_5)
-  // variance = 53.62011293244999166063 + mean * 0.62350146443559151255 + mean^2 * 0.01128075188930972687
-  /*double intercept = 53.62011293244999166063;
-  double slope = 0.62350146443559151255;
-  double poly2 = 0.01128075188930972687;*/
-  double intercept = 10.46385711652957084539; // Fri 17 Apr 2020 11:02:53 PM PDT /space/s1/sandra/alleleFreqHmm/Navin_Nature2011/fitMeanVarRlnshp_noDownsampling.R
+  double intercept = 10.46385711652957084539; // Navin_Nature2011
   double slope = 2.42601321762369614987;
   double poly2 = 0.01114518215725581601;
 
@@ -646,24 +442,13 @@ double HMM::getMeanVariancePoly2() const {
 gsl_vector* HMM::getMeanVarianceCoefVec() const {
   return this->meanVarianceCoefVec;
 }
-//gsl_vector* HMM::getBestImpInitGuess() const {
-//  return this->bestOptimLLInitGuess;
-//}
 double HMM::setParamsToEst(gsl_vector* params) {
-  /*if(this->paramsToEst != nullptr && this->paramsToEst != params) {
-    gsl_vector_free(this->paramsToEst);
-  }
-  this->paramsToEst = params;*/
-  gsl_vector_memcpy(this->paramsToEst, params); // Thu 30 Jan 2020 10:47:35 AM PST changed to be a memcpy instead of free/alloc cycle
-  //std::cout << "IN HMM SETPARAMSTOEST: ";
-  //printRowVector(this->paramsToEst);
+  gsl_vector_memcpy(this->paramsToEst, params);
   return this->setTransition();
 }
 
 double HMM::setFixedParams(gsl_vector* fixedParams) {
-  //gsl_vector_free(this->fixedParams);
-  //this->fixedParams = fixedParams;
-  gsl_vector_memcpy(this->fixedParams, fixedParams); // Thu 30 Jan 2020 11:14:49 AM PST changed to be a memcpy
+  gsl_vector_memcpy(this->fixedParams, fixedParams);
 
   return this->setTransition();
 }
@@ -705,9 +490,7 @@ double HMM::setInitProbSteadyState() {
  * it relies on polymorphism for the correct setLibScalingFactor() fn to be called
  */
 void HMM::setLibScalingFactorsToTotalRatio() {
-  //for(int i = 0; i < this->NUM_LIBS_TO_EST; i++) {
-  for(int i = 0; i < this->NUM_CELLS; i++) { // TODO debugging libRatio
-    //this->setLibScalingFactor(i, totalTumorDepth / totalAvgDiploidDepth);
+  for(int i = 0; i < this->NUM_CELLS; i++) {
     this->setLibScalingFactor(i, this->calcLibScalingFactorsToTotalRatio(i));
   }
 }
@@ -718,7 +501,6 @@ double HMM::calcLibScalingFactorsToTotalRatio(int cellIdx) const {
 }
 void HMM::setLibScalingFactors(gsl_vector* libScalingFactors) {
   for(int i = 0; i < this->NUM_LIBS_TO_EST; i++) {
-    //gsl_vector_set(this->paramsToEst, this->LIB_SIZE_SCALING_FACTOR_START_IDX + i, gsl_vector_get(libScalingFactors, i));
     this->setLibScalingFactor(i, gsl_vector_get(libScalingFactors, i));
   }
 }
@@ -744,16 +526,11 @@ void HMM::setLibScalingFactors(gsl_vector* libScalingFactors) {
  * is set during calls to getEmissionProb
  */
 void HMM::miscFunctions() {
-  //std::cerr << "IN HMM miscFunctions()" << std::endl;
   return;
   this->estLibScalingFactorsPosterior();
 }
 void HMM::estLibScalingFactorsPosterior() {
-  //this->setLibScalingFactorsToTotalRatio();
-  //std::cerr << "after HMM::setLib" << std::endl;
-  //return; // Tue 17 Mar 2020 06:13:46 PM PDT debugging: is the lib size messing things up? try setting lib sizes to true scaling factors from simulation
   this->viterbiDecode(); // only need to call once per pair; needed for viterbi version
-  //this->calcMargLikelihoods(); // needed for for/back version
   for(int i = 0; i < this->NUM_CELLS; i++) {
     this->setLibScalingFactor(i, this->estLibScalingFactorsPosterior(i));
   }
@@ -775,94 +552,19 @@ double HMM::estLibScalingFactorsPosterior(int cellNum) {
     // for each window in chr
     for(unsigned int windowIdx = 0; windowIdx < (*currDepths->regions)[currChr]->size(); windowIdx++) {
       expPloidy = (*(*currDepths->chrToViterbiPathMap)[currChr])[windowIdx];
-      //std::cout << "expPloidy: " << expPloidy << ",\tdiploid reads: " << (*diploidDepthVec)[windowIdx] << std::endl;
-      //sum += (*diploidDepthVec)[windowIdx] * expPloidy;
       sum += (*diploidDepthVec)[windowIdx]/2.0 * expPloidy;
     }
   }
 
-  /*// avg viterbi version; same as viterbi += 3 decimal places
-  std::string currChr;
-  double avgPloidy = 0;
-  double totPloidy = 0;
-  // for each chr
-  for(unsigned int chrIdx = 0; chrIdx < currDepths->chrVec->size(); chrIdx++) {
-    currChr = (*currDepths->chrVec)[chrIdx];
-    //diploidDepthVec = (*currDepths->chrToDiploidDepthMap)[currChr];
-
-    // for each window in chr
-    for(unsigned int windowIdx = 0; windowIdx < (*currDepths->regions)[currChr]->size(); windowIdx++) {
-      totPloidy += (*(*currDepths->chrToViterbiPathMap)[currChr])[windowIdx];
-      //std::cout << "totPloidy: " << totPloidy << ",\tnumWindows " << currDepths->numWindows << std::endl;
-      //sum += (*diploidDepthVec)[windowIdx] * expPloidy;
-      //sum += (*diploidDepthVec)[windowIdx]/2.0 * expPloidy;
-    }
-  }
-  avgPloidy = totPloidy / currDepths->numWindows;*/
-
-  /*// forward/backward version // Wed 06 May 2020 03:40:51 PM PDT exceedingly slow, not sure why, but same as viterbi += 3 decimal places
-  std::vector<double>* diploidDepthVec = nullptr;
-  gsl_matrix* currForBackMat = nullptr;
-  std::string currChr;
-  double sum = 0;
-  double expPloidy = 0;
-  // for each chr
-  for(unsigned int chrIdx = 0; chrIdx < currDepths->chrVec->size(); chrIdx++) {
-    currChr = (*currDepths->chrVec)[chrIdx];
-    diploidDepthVec = (*currDepths->chrToDiploidDepthMap)[currChr];
-    currForBackMat = (*currDepths->forBackMargMatMap)[currChr];
-
-    for(int state = 0; state < this->MAX_PLOIDY+1; state++) {
-      // for each window in chr
-      for(unsigned int windowIdx = 1; windowIdx < (*currDepths->regions)[currChr]->size(); windowIdx++) {
-       // expPloidy = 0;
-        expPloidy = state * exp(gsl_matrix_get(currForBackMat, state, windowIdx));
-        //std::cout << "expPloidy: " << expPloidy << ",\t" << state << ", " << exp(gsl_matrix_get((*currDepths->forBackMargMatMap)[currChr], state, windowIdx)) << std::endl;
-        sum += (*diploidDepthVec)[windowIdx]/2.0 * expPloidy;
-      }
-    }
-  }*/
-
-  /*// stat dist
-  // let X_ij ~ NB(ploidy_i * DR_i / 2 + epsilon) * c_j
-  // where c_j = T_j / (n * epsilon + sum_windows (DR_j / 2 * weighted avg ploidy (by stationary dist) + epsilon))
-  // get weighted avg ploidy
-  int currPloidy = -1;
-  double weightedAvgPloidy = 0;
-  for(unsigned int stateIdx = 0; stateIdx < this->initProb->size; stateIdx++) {
-    currPloidy = getCellPloidyFromStateIdx(cellNum, stateIdx);
-    weightedAvgPloidy += currPloidy * gsl_vector_get(this->initProb, stateIdx);
-  }*/
-
   // finally, multiply everything together
-  //double nEps = currDepths->numWindows * (currDepths->diploidLibrarySize / this->DEPTH_ERROR_SCALING);
-  //double nEps = (currDepths->diploidLibrarySize / this->DEPTH_ERROR_SCALING);
-  //double nEps = currDepths->numWindows / this->DEPTH_ERROR_SCALING;
-  //double nEps = currDepths->diploidLibrarySize / this->DEPTH_ERROR_SCALING;
-  //double nEps = currDepths->numWindows * 65.37034 / this->DEPTH_ERROR_SCALING;
-  double nEps = currDepths->numWindows * 272.5568 / this->DEPTH_ERROR_SCALING; // unnormDiploid error term
-  //double nEps = 0; // Mon 04 May 2020 06:32:51 PM PDT noErr debugging
+  double nEps = currDepths->numWindows * 272.5568 / this->DEPTH_ERROR_SCALING;
   double T = currDepths->tumorLibrarySize;
+  double scalingFactor = (T - nEps) / sum; // viterbi version with const err
 
-  //double scalingFactor = T / (nEps + sum); // viterbi version
-  double scalingFactor = (T - nEps) / sum; // viterbi version with const err Tue 08 Jun 2021 05:26:51 PM PDT
-  //double scalingFactor = T / (nEps + avgPloidy * currDepths->diploidLibrarySize / 2.0); // avg viterbi version
-  //double scalingFactor = T / (currDepths->diploidLibrarySize / 2.0 * weightedAvgPloidy + nEps); // stat dist
-
-  // adr  cellNum  nEps  T  sum  2T/sum  T/(nEps+sum)
-  //fprintf(stderr, "%%%p\t%i\t%.2f\t%.2f\t%.2f\t%.10f\t%.10f\n", this, cellNum, nEps, T, sum, 2.0*T/sum, T/(nEps+sum));
   if(this->gradientDebug) {
     fprintf(stderr, "%%%p\t%i\t%.2f\t%.2f\t%.2f\t%.10f\t%.10f\t%.10f\t%.10f\n", this, cellNum, nEps, T, sum, (T-nEps)/sum, T/(nEps+sum), currDepths->diploidLibrarySize, currDepths->tumorLibrarySize / currDepths->diploidLibrarySize); // viterbi version
-    //fprintf(stderr, "%%%p\t%i\t%.2f\t%.2f\t%.2f\t%.10f\n", this, cellNum, nEps, T, avgPloidy, T / (nEps + avgPloidy * currDepths->diploidLibrarySize / 2.0));
-    //fprintf(stderr, "%%%p\t%i\t%.2f\t%.10f\t%.10f\t%.10f\t%.10f\t%.10f\t%.10f\n", this, cellNum, nEps, weightedAvgPloidy, scalingFactor, T, currDepths->diploidLibrarySize, currDepths->diploidLibrarySize / 2.0, (currDepths->diploidLibrarySize / 2.0 * weightedAvgPloidy + nEps)); // stationary dist version
   }
-
-  //std::cout << "libScale: " << 2.0 * T / sum << "\t";//<< ", T: " << T << ", sum: " << sum << ", nEps: " << nEps << std::endl;
-
-  //return T / (nEps + sum); // viterbi version
   return scalingFactor;
-  //return 2.0 *(T - nEps) / sum;
-  //return 2.0 * T / (nEps + sum);
 }
 
 /*
@@ -873,8 +575,7 @@ double HMM::estLibScalingFactorsPosterior(int cellNum) {
  *     returns (1,0) ==> 0
  */
 int HMM::getCellPloidyFromStateIdx(int cellIdx, int stateIdx) const {
-  //return stateIdx / ((int) std::pow(this->MAX_PLOIDY + 1, this->NUM_CELLS - (cellIdx + 1))) % (this->MAX_PLOIDY + 1); // for dummy data, std::pow takes 21 sec, looping takes 21 sec, lookup in parsedStates takes 31 sec
-  int div = 1; // unclear if std::pow or loop is faster on small dummy data TODO
+  int div = 1;
   for(int i = 0; i < this->NUM_CELLS - (cellIdx + 1); i++) {
     div *= this->MAX_PLOIDY + 1;
   }
@@ -938,9 +639,8 @@ double HMM::getViterbiLogLikelihood() {
       currVitState = (*(*currDepths->chrToViterbiPathMap)[currChr])[0];
 
       emissionProb = this->getEmissionProb(tumorDepth, diploidDepth, currVitState, cellIdx);
-      transitionProb = gsl_vector_get(this->initProb, currVitState); //gsl_matrix_get(this->transition, prevVitState, currVitState); // won't work for anything other than one cell
+      transitionProb = gsl_vector_get(this->initProb, currVitState);
 
-      //fprintf(stderr, "%.5f\t%.5f\t%i\t%i\t%.20f\t%.20f\t%.20f\t%.20f\t%.20f\n", tumorDepth, diploidDepth, prevVitState, currVitState, emissionProb, transitionProb, log(emissionProb), 0.0, log(emissionProb) + 0); // NOTE: checkPerWindowLogLik uncomment HERE
       vitLl += log(emissionProb) + 0;
     }
 
@@ -957,7 +657,6 @@ double HMM::getViterbiLogLikelihood() {
         emissionProb = this->getEmissionProb(tumorDepth, diploidDepth, currVitState, cellIdx);
         transitionProb = gsl_matrix_get(this->transition, prevVitState, currVitState); // won't work for anything other than one cell
 
-        //fprintf(stderr, "%.5f\t%.5f\t%i\t%i\t%.20f\t%.20f\t%.20f\t%.20f\t%.20f\n", tumorDepth, diploidDepth, prevVitState, currVitState, emissionProb, transitionProb, log(emissionProb), log(transitionProb), log(emissionProb) + log(transitionProb)); // NOTE: checkPerWindowLogLik uncomment HERE
         vitLl += log(emissionProb) + log(transitionProb);
       }
     }
@@ -975,15 +674,9 @@ double HMM::runForwardAlg() {
   gsl_vector* scalingVec = nullptr;
   gsl_matrix* forwardMat = nullptr;
 
-  //int currPloidy = -1;
   int stateIdx = -1;
   int cellIdx = -1;
-  //int windowIdx = -1;
   double scalingFactor = 0;
-  //double currTumorDepth = -1;
-  //double currDiploidDepth = -1;
-  //double currRes = 0;
-  //double initProb = 0;
   double emissionProb = -1;
 
   double currResPloidy = 0;
@@ -1012,162 +705,52 @@ double HMM::runForwardAlg() {
     }
     (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
 
-    //std::cerr << "before first col" << std::endl;
-    // set first col to initProb * emission prob for first sym
-   /* currTumorDepth = -1;
-    //currDiploidDepth = -1;
-    //currRes = 0;
-    //initProb = 0;
-    emissionProb = 1;
-    currPloidy = -1;
-    currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[0];*/
-    //windowIdx++;
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      /*//emissionProb = 1;
-      emissionProb = 0;
-
-      // for each cell, calc the emission prob and multiply by it
-      for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-        currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-        currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[0];
-        //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, cellIdx);
-        //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx); // USE THIS ONE; Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
-        //emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx)); // USE THIS ONE; Wed 24 Jun 2020 03:43:13 PM PDT precision debugging
-        emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, 0, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-
-        //// Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
-        //int simState = std::atoi((*(*(*this->depths)[cellIdx]->chrToTumorSimStateMap)[currChr])[0].c_str()); // get sim state
-        //if(simState == currPloidy) {
-        //  emissionProb *= 1;
-        //} else {
-        //  emissionProb *= 0;
-        //}
-
-
-
-      //std::cout << "emmissionProb: " << emissionProb << ", " << currTumorDepth << std::endl;
-      }*/
       emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
-      //std::cout << "stateIdx " << stateIdx << ", chrIdx: " << chrIdx << ", depth " << 0 << ", emission: " << emissionProb << std::endl;
-      //std::cout << "tot calc: " <<  << std::endl;
-      //std::cout << "mult emmissionProb: " << emissionProb << std::endl;
-      //initProb = gsl_vector_get(this->initProb, stateIdx);
-      //currResPloidy = emissionProb * initProb;
-      //currResPloidy = emissionProb * gsl_vector_get(this->initProb, stateIdx);
-      //gsl_matrix_set(forwardMat, stateIdx, 0, currResPloidy);
       currResPloidy = emissionProb + log(gsl_vector_get(this->initProb, stateIdx));
 
       gsl_matrix_set(forwardMat, stateIdx, 0, exp(currResPloidy));
     }
-    //gsl_matrix_set_col(forwardMat, 0, this->initProb);
 
     // rescale first col by max
     gsl_vector_view firstCol = gsl_matrix_column(forwardMat, 0);
-    //printRowVector(stderr, &firstCol.vector);
     scalingFactor = gsl_vector_max(&firstCol.vector);
-    //scalingFactor = 1.0;
     gsl_vector_scale(&firstCol.vector, 1.0 / scalingFactor);
     gsl_vector_set(scalingVec, 0, scalingFactor);
-    //printMatrix(forwardMat);
 
-    /*for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      currResPloidy = gsl_matrix_get(forwardMat, stateIdx, 0);
-      if(compareDoubles(currResPloidy, 0, 1e-200)) {
-        emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
-        std::cout << "CURRRESPLOIDY(" << stateIdx << ") IS 0: " << currResPloidy << ", " << emissionProb << ", " << gsl_vector_get(this->initProb, stateIdx) << ", " << log(gsl_vector_get(this->initProb, stateIdx)) << std::endl;
-      }
-    }*/
-
-    //std::cout << "after first col" << std::endl;
     // iter through observed sequence
     gsl_vector_set_zero(this->prevForwardCol);
     gsl_vector_set_zero(this->currForwardCol);
     currResPloidy = 0;
-  //for(int tmp = 0; tmp < this->diploidDepthPloidyPreCalc->size(); tmp++) {
-  //  std::cout << (*this->diploidDepthPloidyPreCalc)[tmp] << ", ";
-  //}
-  //std::cout << std::endl;
-    //for(i = 1; i < (*firstDepthPair->regions)[currChr]->size(); i++) {
-    //for(i = 1, depthIdx = 0; i < forwardMat->size2; i++, depthIdx++) {
     for(i = 1, depthIdx = 1; i < forwardMat->size2; i++, depthIdx++) {
       gsl_vector_set_zero(this->currForwardCol);
       gsl_matrix_get_col(this->prevForwardCol, forwardMat, i-1);
 
-      //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[i];
-      //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[depthIdx];
-      //std::cout << "considering depthidx: " << depthIdx << ", forwardMat idx i: " << i << std::endl;
-      //windowIdx++;
       // iter over states in col i
       for(stateIdx = 0; stateIdx < (int) this->states->size(); stateIdx++) {
-        ////emissionProb = 1;
-        //emissionProb = 0;
-
-        ////std::chrono::steady_clock::time_point tmpBegin = std::chrono::steady_clock::now();
-        //// for each cell, calc the emission prob and multiply by it
-        //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-        //  currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-        //  //currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[i];
-        //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[depthIdx];
-        //  //std::cout << currTumorDepth << ", " << currDiploidDepth << ", " << currPloidy << ", " << cellIdx << std::endl;
-        //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, cellIdx);
-        //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, windowIdx, cellIdx);
-        //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx); // Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
-        //  //emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx)); // Wed 24 Jun 2020 03:43:13 PM PDT precision debugging
-        //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, depthIdx, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-
-        //  /*// Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
-        //  int simState = std::atoi((*(*(*this->depths)[cellIdx]->chrToTumorSimStateMap)[currChr])[i].c_str()); // get sim state
-        //  if(simState == currPloidy) {
-        //    emissionProb *= 1;
-        //  } else {
-        //    emissionProb *= 0;
-        //  }*/
-
-
-
-
-
-
-        ////std::cout << "emmissionProb: " << emissionProb << ", " <<  currTumorDepth << std::endl;
-        //}
-        //std::cout << emissionProb - this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx) << std::endl;
         emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
-        //std::cout << "stateIdx " << stateIdx << ", chrIdx: " << chrIdx << ", depth " << depthIdx << ", emission: " << emissionProb << std::endl;
-        //std::chrono::steady_clock::time_point tmpEnd = std::chrono::steady_clock::now();
-        //double tmpElapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(tmpEnd - tmpBegin).count() / 1000000.0;
-        //std::cout << tmpElapsedSec << std::endl;
-        //fprintf(stdout, "ONE emi\t%.80f\n", tmpElapsedSec);
-        //std::cout << "mult emmissionProb: " << emissionProb << std::endl;
+
         // iter over possible transitions
         for(j = 0; j < this->prevForwardCol->size; j++) {
-          //this->currForwardCol[stateIdx] += emissionProb * this->prevForwardCol[j] * this->transition[j][stateIdx];
           currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx);
-          //gsl_vector_set(this->currForwardCol, stateIdx, currResPloidy + emissionProb * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx));
           gsl_vector_set(this->currForwardCol, stateIdx, currResPloidy + exp(emissionProb + log(gsl_vector_get(this->prevForwardCol, j)) + log(gsl_matrix_get(this->transition, j, stateIdx))));
         }
       }
-      //std::cout << std::endl;
 
       // find max of this->currForwardCol to scale with
       scalingFactor = gsl_vector_max(this->currForwardCol);
-      //scalingFactor = 1.0;
 
       // scale this->currForwardCol by scalingFactor
       gsl_vector_scale(this->currForwardCol, 1.0 / scalingFactor);
 
       // save this->currForwardCol and scalingFactor
-      //std::cout << "scalingVec[" << i << "]: " << gsl_vector_get(scalingVec, i) << ", size: " << scalingVec->size << std::endl;
       gsl_vector_set(scalingVec, i, scalingFactor);
       gsl_matrix_set_col(forwardMat, i, this->currForwardCol);
-      //printMatrix(forwardMat);
-    //printRowVector(stdout, this->currForwardCol);
     }
 
     // return unscaled forward prob (prob of observed seq given model params)
     sumLogScalingFactors = 0;
     for(i = 0; i < scalingVec->size; i++) {
-      //std::cout << "forward scalingVec[" << i << "]: " << gsl_vector_get(scalingVec, i) << ", log(): " << log(gsl_vector_get(scalingVec, i)) << std::endl;
-      //fprintf(stdout, "%.20f\n", log(gsl_vector_get(scalingVec, i))); // NOTE: checkPerWindowLogLik uncomment HERE
       sumLogScalingFactors = sumLogScalingFactors + log(gsl_vector_get(scalingVec, i));
     }
 
@@ -1183,18 +766,14 @@ double HMM::runForwardAlg() {
     //             = log(sum(scaled last cols)) + sum_{all cols}(log(max(col)))
     gsl_vector_view lastCol = gsl_matrix_column(forwardMat, forwardMat->size2-1);
     sumLastCol = gsl_blas_dasum(&lastCol.vector); // Double Absolute SUM
-    //printColVector((gsl_vector*)&lastCol.vector);
     logScaledSumLastCol = log(sumLastCol);
     totalLogLikelihood += sumLogScalingFactors + logScaledSumLastCol;
-    //std::cout << currChr << ", " << sumLogScalingFactors + logScaledSumLastCol << std::endl;
-    //std::cout << "logScaledSumLastCol:" << logScaledSumLastCol << ", sumLogScalingFactors: " << sumLogScalingFactors << ", totalLogLikelihood: " << totalLogLikelihood << ", likelihood: " << exp(totalLogLikelihood) << std::endl;
   }
 
   if(isnan(totalLogLikelihood) || isnan(-totalLogLikelihood)) {
     totalLogLikelihood = GSL_NAN;
   }
 
-  //delete currChrDepthsVec;
   return totalLogLikelihood;
 }
 
@@ -1209,12 +788,9 @@ double HMM::runBackwardAlg() {
   gsl_vector* scalingVec = nullptr;
   gsl_matrix* backwardMat = nullptr;
 
-  //int currPloidy = -1;
   int stateIdx = -1;
   int cellIdx = -1;
   double scalingFactor = 0;
-  //double currTumorDepth = -1;
-  //double currDiploidDepth = -1;
   double currRes = 0;
   double initProb = 0;
   double emissionProb = -1;
@@ -1242,12 +818,9 @@ double HMM::runBackwardAlg() {
     }
     (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
 
-    //std::cerr << "before first col" << std::endl;
     // set last col to 1
-    //currTumorDepth = -1;
     currRes = 0;
     emissionProb = 1;
-    //currPloidy = -1;
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
       gsl_matrix_set(backwardMat, stateIdx, backwardMat->size2 - 1, 1.0); // last col is just 1's
     }
@@ -1257,89 +830,46 @@ double HMM::runBackwardAlg() {
     gsl_vector_set_zero(this->currBackwardCol);
     currResPloidy = 0;
     for(i = backwardMat->size2 - 2, depthIdx = (*firstDepthPair->regions)[currChr]->size() - 1; i >= 0 ; i--, depthIdx--) { // -1 would get last col
-    //for(i = backwardMat->size2 - 1, depthIdx = (*firstDepthPair->regions)[currChr]->size() - 1; i >= 0 ; i--, depthIdx--) { // -1 would get last col
       gsl_vector_set_zero(this->currBackwardCol);
       gsl_matrix_get_col(this->nextBackwardCol, backwardMat, i+1);
-      //std::cout << "nextBackwardCol idx: " << i+1 << std::endl;
 
-      //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[depthIdx];
-      //std::cout << "considering depthidx: " << depthIdx << ", backwardMat idx i: " << i << std::endl;
       // iter over states in col i
       for(stateIdx = 0; stateIdx < (int) this->states->size(); stateIdx++) {
 
         // iter over possible transitions
-        // this->currBackwardCol[stateIdx] += transition[stateIdx][j] * this->nextBackwardCol[j] * emissionProb(of j'th symbol)
         for(j = 0; j < (int) this->nextBackwardCol->size; j++) {
           currResPloidy = gsl_vector_get(this->currBackwardCol, stateIdx);
 
-          //// for each cell, calc the emission prob and multiply by it
-          ////emissionProb = 1;
-          //emissionProb = 0;
-          //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-          //  currPloidy = getCellPloidyFromStateIdx(cellIdx, j);
-          //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[depthIdx];
-          //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, windowIdx, cellIdx);
-          //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx); // USE THIS ONE; Tue 24 Mar 2020 05:53:24 PM PDT simStateEmi debugging
-          //  //emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx)); // USE THIS ONE; Wed 24 Jun 2020 03:43:13 PM PDT precision debugging
-          //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, depthIdx, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-          //  //std::cout << cellIdx << ", " << currTumorDepth << ", " << this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, depthIdx, cellIdx) << std::endl;
-          //}
-          //std::cout << emissionProb - this->getTotalLogEmissionProb(j, currChrDepthsVec, chrIdx, depthIdx) << std::endl;
           emissionProb = this->getTotalLogEmissionProb(j, currChrDepthsVec, chrIdx, depthIdx);
-          //gsl_vector_set(this->currBackwardCol, stateIdx, currResPloidy + emissionProb * gsl_vector_get(this->nextBackwardCol, j) * gsl_matrix_get(this->transition, stateIdx, j));
           gsl_vector_set(this->currBackwardCol, stateIdx, currResPloidy + exp(emissionProb + log(gsl_vector_get(this->nextBackwardCol, j)) + log(gsl_matrix_get(this->transition, stateIdx, j))));
         }
       }
 
       // scale with scaling factors calculated from runForwardAlg
       scalingFactor = gsl_vector_get(scalingVec, i+1);
-      //scalingFactor = 1;//gsl_vector_get(scalingVec, i+1);
 
       // scale this->currBackwardCol by scalingFactor
       gsl_vector_scale(this->currBackwardCol, 1.0 / scalingFactor);
 
       // save this->currBackwardCol
       gsl_matrix_set_col(backwardMat, i, this->currBackwardCol);
-      //printMatrix(backwardMat);
     }
 
     // for the very first col, need to mult steady state, emission prob, and backwards mat. however, the backwardMat should not actually be set (see https://web.stanford.edu/~jurafsky/slp3/A.pdf page 12)
-    //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[0];
     gsl_matrix_get_col(this->currBackwardCol, backwardMat, 0);
 
-    //scalingFactor = gsl_vector_get(scalingVec, 1); // Wed 03 Jun 2020 12:41:44 PM PDT added this scalingFactor, not sure why it wasn't there before?
-    scalingFactor = gsl_vector_get(scalingVec, 0); // Wed 17 Jun 2020 03:13:29 PM PDT changed back to 1:1 mapping of times and indices
+    scalingFactor = gsl_vector_get(scalingVec, 0);
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      ////emissionProb = 1;
-      //emissionProb = 0;
-
-      //// for each cell, calc the emission prob and multiply by it
-      //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-      //  currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-      //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[0];
-      //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, windowIdx, cellIdx);
-      //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx);
-      //  //emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx));
-      //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, 0, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-      //}
-      //std::cout << emissionProb - this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0) << std::endl;
       emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
 
       initProb = gsl_vector_get(this->initProb, stateIdx);
-      //currRes = emissionProb * initProb * gsl_matrix_get(backwardMat, stateIdx, 1);
-      //currRes = emissionProb * initProb * gsl_matrix_get(backwardMat, stateIdx, 1) / scalingFactor; // Wed 03 Jun 2020 12:41:44 PM PDT added this scalingFactor, not sure why it wasn't there before?
-      //currRes = emissionProb * initProb * gsl_matrix_get(backwardMat, stateIdx, 0) / scalingFactor; // Wed 17 Jun 2020 03:13:29 PM PDT changed back to 1:1 mapping of times and indices
-      currRes = exp(emissionProb + log(initProb) + log(gsl_matrix_get(backwardMat, stateIdx, 0)) - log(scalingFactor)); // Wed 17 Jun 2020 03:13:29 PM PDT changed back to 1:1 mapping of times and indices
+      currRes = exp(emissionProb + log(initProb) + log(gsl_matrix_get(backwardMat, stateIdx, 0)) - log(scalingFactor));
       gsl_vector_set(this->currBackwardCol, stateIdx, currRes);
     }
-    //gsl_matrix_set_col(backwardMat, 0, this->currBackwardCol); // according to https://en.wikipedia.org/wiki/Baum%E2%80%93Welch_algorithm#Backward_procedure and stanford link earlier, don't save this
-    //printMatrix(backwardMat);
 
     // return unscaled backward prob (prob of observed seq given model params)
     sumLogScalingFactors = 0;
-    //for(i = 1; i < (int) scalingVec->size; i++) {
     for(i = 0; i < (int) scalingVec->size; i++) {
-      //std::cout << "backward scalingVec[" << i << "]: " << gsl_vector_get(scalingVec, i) << ", log(): " << log(gsl_vector_get(scalingVec, i)) << std::endl;
       sumLogScalingFactors = sumLogScalingFactors + log(gsl_vector_get(scalingVec, i));
     }
 
@@ -1360,8 +890,6 @@ double HMM::runBackwardAlg() {
  * first calls forward alg, then backward alg, then fills entries in forBackMatVec (specifically, stores the normalized log likelihood)
  */
 int HMM::runForBackAlg() {
-  //std::cout << "###" << this->runForwardAlg() << std::endl;
-  //std::cout << "###" << this->runBackwardAlg()<< std::endl;
   double forLogLik = this->runForwardAlg();
   double backLogLik = this->runBackwardAlg();
   if(isnan(forLogLik) || isnan(backLogLik)) {
@@ -1373,10 +901,7 @@ int HMM::runForBackAlg() {
     std::cerr << "this->transition" << std::endl;
     printMatrix(stderr, this->transition);
     return -1;
-    //exit(1);
   }
-  //std::cout << "###" << forLogLik << std::endl;
-  //std::cout << "###" << backLogLik << std::endl;
 
   gsl_vector* scalingVec = nullptr;
   gsl_matrix* forwardMat = nullptr;
@@ -1384,8 +909,6 @@ int HMM::runForBackAlg() {
   gsl_matrix* forBackMat = nullptr;
 
   unsigned int stateIdx = -1;
-  //double forScalingFactor = 1;
-  //double backScalingFactor = 1;
   double scalingFactor = 0;
 
   double forLik = -1;
@@ -1401,63 +924,29 @@ int HMM::runForBackAlg() {
     backwardMat = (*this->backwardMatVec)[chrIdx];
     forBackMat = (*this->forBackMatVec)[chrIdx];
     gsl_matrix_set_all(forBackMat, 0);
-    //std::cout << "forwardMat, chrIdx: " << chrIdx << std::endl;
-    //printMatrix(forwardMat);
-    //std::cout << "backwardMat, chrIdx: : " << chrIdx << std::endl;
-    //printMatrix(backwardMat);
 
-    //forScalingFactor = 1;
-    //backScalingFactor = 1;
-    //forScalingFactor = 0;
-    //backScalingFactor = 0;
     // recalc scaling factors for backwardMat, based on scalingVec
     scalingFactor = 0;
     for(i = 0; i < forBackMat->size2; i++) {
-      //backScalingFactor *= gsl_vector_get(scalingVec, i);
-      //backScalingFactor += log(gsl_vector_get(scalingVec, i));
       scalingFactor += log(gsl_vector_get(scalingVec, i));
     }
-    //std::cout << "starting backScalingFactor: " << backScalingFactor << std::endl;
 
     // recalc per chr likelihood by summing the last col of forwardMat, added to the summed and logged scaling factors
     gsl_vector_view lastCol = gsl_matrix_column(forwardMat, forwardMat->size2-1);
-    //chrTotLik = backScalingFactor + log(gsl_blas_dasum(&lastCol.vector));
     chrTotLik = scalingFactor + log(gsl_blas_dasum(&lastCol.vector));
-    //std::cout << "chrTotLike: " << chrTotLik << std::endl;
 
     // iter through observed sequence
     for(i = 0; i < forBackMat->size2; i++) {
-      //forScalingFactor *= gsl_vector_get(scalingVec, i);
-      //backScalingFactor /= gsl_vector_get(scalingVec, i);
-      //forScalingFactor += log(gsl_vector_get(scalingVec, i));
-      //backScalingFactor -= log(gsl_vector_get(scalingVec, i));
-      //std::cout << "forScaling: " << forScalingFactor << ", backScaling: " << backScalingFactor << std::endl;
 
       // iter over states in col i
       for(stateIdx = 0; stateIdx < forBackMat->size1; stateIdx++) {
-        //forLik = gsl_matrix_get(forwardMat, stateIdx, i) * forScalingFactor;
-        //backLik = gsl_matrix_get(backwardMat, stateIdx, i) * backScalingFactor;
-        //forLik = log(gsl_matrix_get(forwardMat, stateIdx, i)) + forScalingFactor;
-        //backLik = log(gsl_matrix_get(backwardMat, stateIdx, i)) + backScalingFactor;
         forLik = log(gsl_matrix_get(forwardMat, stateIdx, i));
         backLik = log(gsl_matrix_get(backwardMat, stateIdx, i));
-        //std::cout << "forLike: " << forLik << ", backLike: " << backLik << ", prod: " << forLik * backLik << std::endl;
-        //std::cout << "logfor: " << log(gsl_matrix_get(forwardMat, stateIdx, i)) << ", forScaling: " << forScalingFactor << ", logback: " << log(gsl_matrix_get(backwardMat, stateIdx, i)) << ", backScaling: " << backScalingFactor << ", scalingProd: " << scalingProd << std::endl;
-        //forBackLik = forLik * backLik / exp(totalLogLike);
-        /*if(isinf(forLik)) {
-          forLik = std::numeric_limits<double>::min();
-        }
-        if(isinf(backLik)) {
-          backLik = std::numeric_limits<double>::min();
-        }*/
-        //std::cout << "for: " << forLik << ", mat: " << gsl_matrix_get(forwardMat, stateIdx, i) << ", back: " << backLik << ", chrT: " << chrTotLik << ", scal: " << scalingFactor << std::endl;
         forBackLik = forLik + backLik - chrTotLik + scalingFactor;
-        //gsl_matrix_set(forBackMat, stateIdx, i, exp(forBackLike));
+
         gsl_matrix_set(forBackMat, stateIdx, i, forBackLik);
       }
     }
-    //std::cout << "forBackMat:" << std::endl;
-    //printMatrix(forBackMat);
   }
   return 0;
 }
@@ -1468,11 +957,8 @@ int HMM::runForBackAlg() {
 void HMM::runBaumWelch(int numBWIters) {
   // emission prob related variables
   int numStates = this->states->size();
-  //int currPloidy = -1;
   int cellIdx = -1;
   int stateIdx = -1;
-  //double currDiploidDepth = -1;
-  //double currTumorDepth = -1;
   double emissionProb = -1;
   gsl_vector* colEmissionProbs = gsl_vector_alloc(numStates); ;
   DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
@@ -1480,8 +966,6 @@ void HMM::runBaumWelch(int numBWIters) {
   std::string currChr;
   std::vector<std::vector<double>*>* currChrDepthsVec = new std::vector<std::vector<double>*>(this->NUM_CELLS + 1);
   std::vector<std::string>* chrVec = this->getChrVec();
-  //double nEps = firstDepthPair->numWindows * 272.5568 / this->DEPTH_ERROR_SCALING; // unnormDiploid error term; for statDist update of lib sizes
-  //double weightedAvgPloidy = 0;
 
   gsl_vector* scalingVec = nullptr;
   gsl_matrix* forwardMat = nullptr; // scaled (by scalingVec) forward probs
@@ -1504,7 +988,7 @@ void HMM::runBaumWelch(int numBWIters) {
   double backScalingFactor = 0;
   double chrTotalLik = 0;
   double currTotalLik = 0;
-  double prevTotalLik = this->getLogLikelihood(); //-std::numeric_limits<double>::max();
+  double prevTotalLik = this->getLogLikelihood();
   double initTotalLik = prevTotalLik;
   int forBackStatus = 0;
 
@@ -1513,12 +997,10 @@ void HMM::runBaumWelch(int numBWIters) {
   gsl_vector* updatedInitProb = gsl_vector_alloc(numStates);
   gsl_matrix* summedEdgeMat = gsl_matrix_alloc(this->transition->size1, this->transition->size2);
   gsl_vector* summedForBackVec = gsl_vector_alloc(numStates); // from t=1 to T-1, for updating transition probs
-  //gsl_vector* estLibScaling = gsl_vector_alloc(this->NUM_CELLS); // one entry per cell
   double currEdge = 0;
   double currForBack = 0;
   double currTransitionProb = 0;
   double currTransitionRowSum = 0;
-  //double currSA = 0;
   bool transitionUpdateErr = false;
 
   // variables for comparing against simulation transition matrix, if have it
@@ -1550,7 +1032,6 @@ void HMM::runBaumWelch(int numBWIters) {
 
   printf("BAUM WELCH INITIAL LIKELIHOOD: %.40f\n", initTotalLik);
   for(int bwIters = 0; bwIters < numBWIters; bwIters++) {
-    //std::cout << "ON bwIters: " << bwIters << std::endl;
     begin = std::chrono::steady_clock::now();
     // #### calculate normalized loglikelihoods into this->forBackMatVec #####
     forBackStatus = this->runForBackAlg();
@@ -1600,38 +1081,16 @@ void HMM::runBaumWelch(int numBWIters) {
       for(t = 0; t < edgeMat->size2; t++) {
         // pre calc emission prob entries b_j(y_(t+1)) for a col t+1
         gsl_vector_set_zero(colEmissionProbs);
-        //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[t+1];
         for(stateIdx = 0; stateIdx < numStates; stateIdx++) {
-          //emissionProb = 1;
-          //emissionProb = 0;
-          //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-          //  currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-          //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[t+1];
-          //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx);
-          //  //emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx));
-          //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, 0, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-          //  //std::cout << currPloidy << ", " << currTumorDepth << ", " << currDiploidDepth << ", " << cellIdx << ", " << t+1 << std::endl;
-          //}
-          //std::cout << emissionProb - this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, t+1) << std::endl;
           emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, t+1);
           gsl_vector_set(colEmissionProbs, stateIdx, emissionProb);
-          //gsl_vector_set(colEmissionProbs, stateIdx, exp(emissionProb));
         }
-        //std::cout << "colEmissionProbs" << std::endl;
-        //printColVector(colEmissionProbs);
         forScalingFactor += log(gsl_vector_get(scalingVec, t));
         backScalingFactor -= log(gsl_vector_get(scalingVec, t+1));
 
         // calc unscaled entries of edgeMat
         for(i = 0; i < numStates; i++) { // go down a col
           for(j = 0; j < numStates; j++) {
-            ////alpha_it = gsl_matrix_get(forwardMat, i, t); // scaled alpha_i(t)
-            //alpha_it = gsl_matrix_get(forwardMat, i, t) * exp(forScalingFactor);
-            //a_ij = gsl_matrix_get(this->transition, i, j);
-            ////beta_jt1 = gsl_matrix_get(backwardMat, j, t+1); // scaled beta_j(t+1)
-            //beta_jt1 = gsl_matrix_get(backwardMat, j, t+1) * exp(backScalingFactor);
-            //b_jt1 = gsl_vector_get(colEmissionProbs, j);
-
             a_ij = log(gsl_matrix_get(this->transition, i, j));
             if(isinf(a_ij)) {
               gsl_matrix_set(edgeMat, i * numStates + j, t, 0);
@@ -1639,38 +1098,11 @@ void HMM::runBaumWelch(int numBWIters) {
             }
             alpha_it = log(gsl_matrix_get(forwardMat, i, t)) + forScalingFactor;
             beta_jt1 = log(gsl_matrix_get(backwardMat, j, t+1)) + backScalingFactor;
-            //b_jt1 = log(gsl_vector_get(colEmissionProbs, j));
             b_jt1 = gsl_vector_get(colEmissionProbs, j);
-            //std::cout << alpha_it << ", " << a_ij << ", " << beta_jt1 << ", " << b_jt1 << std::endl;
-            //std::cout << alpha_it << ", " << a_ij << ", " << beta_jt1 << ", " << b_jt1 << "; resacled alpha: " << alpha_it * exp(forScalingFactor) << ", scaled beta: " << beta_jt1 * exp(backScalingFactor) << std::endl;
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, alpha_it * a_ij * beta_jt1 * b_jt1);
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, alpha_it * a_ij * beta_jt1 * b_jt1 * exp(forScalingFactor) * exp(backScalingFactor));
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, log(alpha_it) + log(a_ij) + log(beta_jt1) + log(b_jt1) + forScalingFactor + backScalingFactor);
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, exp(alpha_it + a_ij + beta_jt1 + b_jt1));
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, alpha_it + a_ij + beta_jt1 + b_jt1);
             gsl_matrix_set(edgeMat, i * numStates + j, t, exp(alpha_it + a_ij + beta_jt1 + b_jt1 - chrTotalLik));
-            //gsl_matrix_set(edgeMat, i * numStates + j, t, gsl_matrix_get(forwardMat, i, t) * gsl_matrix_get(this->transition, i, j) * gsl_matrix_get(backwardMat, j, t+1) * exp(forScalingFactor + backScalingFactor + gsl_vector_get(colEmissionProbs, j) - chrTotalLik));
-            /*if(compareDoubles(gsl_matrix_get(edgeMat, i * numStates + j, t), 1)) {
-              std::cout << "EDGEMAT ENTRY 1 (" << chrIdx << ":" << i*numStates + j<< "=" << i << "->" << j << "," << t << "): " << alpha_it << ", " << a_ij << ", " << beta_jt1 << ", " << b_jt1 << ", " << chrTotalLik << ", sum: " << alpha_it + a_ij + beta_jt1 + b_jt1 - chrTotalLik << ", exp: " << exp(alpha_it + a_ij + beta_jt1 + b_jt1 - chrTotalLik)<< std::endl;
-            }*/
           }
         }
-        //std::cout << "unscaled edgeMat:" << std::endl;
-        //printMatrix(edgeMat);
-
-        /*// Tue 23 Jun 2020 12:40:51 PM PDT TODO is this normalization wrong??? scale by chrTotLik, as in runForBackAlg???
-        // normalize each col so it sums to 1
-        gsl_vector_view currCol = gsl_matrix_column(edgeMat, t);
-        sumCurrCol = gsl_blas_dasum(&currCol.vector);
-        //gsl_vector_scale(&currCol.vector, 1.0 / sumCurrCol);
-        gsl_vector_scale(&currCol.vector, 1.0 / exp(chrTotalLik)); // chrTotLik is in log space
-        //std::cout << "exp(chrTotalLik): " << exp(chrTotalLik) << ", log: " << chrTotalLik << std::endl;
-        //std::cout << "SUMCURRCOL from scaling edgeMat: " << sumCurrCol << std::endl;*/
-      //std::cout << "scaled edgeMat:" << std::endl;
-      //printMatrix(edgeMat);
       }
-      //std::cout << "chr edgeMat: " << chrIdx << std::endl;
-      //printMatrix(edgeMat);
     } // chr loop
 
     // ##### update step #####
@@ -1680,13 +1112,11 @@ void HMM::runBaumWelch(int numBWIters) {
     gsl_vector_set_zero(updatedInitProb);
     gsl_matrix_set_zero(summedEdgeMat);
     gsl_vector_set_zero(summedForBackVec);
-    //gsl_vector_set_zero(estLibScaling);
 
     // for each chr
     for(chrIdx = 0; chrIdx < chrVec->size(); chrIdx++) {
       currChr = (*chrVec)[chrIdx];
       edgeMat = (*edgeMatVec)[chrIdx];
-      //printMatrix(edgeMat);
       forBackMat = (*this->forBackMatVec)[chrIdx];
 
       // calculate numerator of a_ij* (ie sum_t=1^T-1 xi_ij(t))
@@ -1698,16 +1128,10 @@ void HMM::runBaumWelch(int numBWIters) {
           // iter over observed seq
           for(t = 0; t < edgeMat->size2; t++) {
             currEdge += gsl_matrix_get(edgeMat, i * numStates + j, t);
-            //std::cout << gsl_matrix_get(edgeMat, i * numStates + j, t) << ", " << currEdge << std::endl;
           }
           gsl_matrix_set(summedEdgeMat, i, j, currEdge);
         }
       }
-      //std::cout << "summedEdgeMat, chrIdx: " << chrIdx << std::endl;
-      //printMatrix(summedEdgeMat);
-
-      //std::cout << "forBackMat, chrIdx: " << chrIdx << std::endl;
-      //printMatrix(forBackMat);
 
       // calculate denominator of a_ij* (ie sum_t=1^T-1 gamma_i(t))
       // sum up the forBack mat (ie total exp time in state i)
@@ -1722,46 +1146,9 @@ void HMM::runBaumWelch(int numBWIters) {
         // also sum first col into updatedInitProb
         currForBack = gsl_vector_get(updatedInitProb, i);
         currForBack += exp(gsl_matrix_get(forBackMat, i, 0)); // forBackMat stores loglikelihoods
-        //std::cout << "initProb adding: " << gsl_matrix_get(forBackMat, i, 0) << ", exp(): " << exp(gsl_matrix_get(forBackMat, i, 0)) << std::endl;
         gsl_vector_set(updatedInitProb, i, currForBack);
       }
-      //std::cout << "summedForBackVec, chrIdx: " << chrIdx << std::endl;
-      //printRowVector(summedForBackVec);
-
-      /*// calcualte numerator of b_i* (ie sum_t=1^T 1_emitSym * gamma_i(t), but 1_emitSym indicator is instead s_A = # reads in window / (currPloidy *diploid/2 + epsilon))
-      // i = ploidy, A = cell, t = window
-      // s_Ait = # reads in window t, cell A / (currPloidy_t(i) * diploid_t /2 + epsilon))
-      // estLibScaling_A = sum_i sum_t s_Ait * gamma_i(t) / (sum_i sum_t gamma_i(t))
-      for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-        currDepths = (*this->depths)[cellIdx];
-        (*currChrDepthsVec)[cellIdx] = (*currDepths->chrToTumorDepthMap)[currChr];
-      }
-      (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
-
-      // iter over observed seq
-      for(t = 0; t < forBackMat->size2; t++) {
-        currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[t];
-        for(stateIdx = 0; stateIdx < numStates; stateIdx++) {
-          for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-            currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-            currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[t];
-            //double lambda_i = (ploidy * diploidDepth/2.0 + 272.5568 / this->DEPTH_ERROR_SCALING) * currLibSizeScalingFactor; // withErr, unnormDiploid
-            currSA = currTumorDepth / (currPloidy * currDiploidDepth / 2.0 + 272.5568 / this->DEPTH_ERROR_SCALING); // TODO copied over from TwoCell3TrParam2DegPolyHMM getEmissionProb
-            //std::cout << cellIdx << ", " << currSA << ", " << currTumorDepth << ", " << t << ", " << currPloidy << ", " << currDiploidDepth << ", " << exp(gsl_matrix_get(forBackMat, stateIdx, t)) << ", " << currSA * exp(gsl_matrix_get(forBackMat, stateIdx, t))<< std::endl;
-            gsl_vector_set(estLibScaling, cellIdx, gsl_vector_get(estLibScaling, cellIdx) + currSA * exp(gsl_matrix_get(forBackMat, stateIdx, t))); // forBackMat stores loglikelihoods
-          }
-          //printRowVector(estLibScaling);
-        }
-        printRowVector(estLibScaling);
-        std::cout << std::endl;
-      }*/
-      //printColVector(estLibScaling);
     } // chr loop
-    //std::cout << "summedEdgeMat" << std::endl;
-    //printMatrix(summedEdgeMat);
-
-    //std::cout << "summedForBackVec" << std::endl;
-    //printColVector(summedForBackVec);
 
     // update transition matrix
     for(i = 0; i < numStates; i++) {
@@ -1770,7 +1157,6 @@ void HMM::runBaumWelch(int numBWIters) {
       for(j = 0; j < numStates; j++) {
         currEdge = gsl_matrix_get(summedEdgeMat, i, j);
         currTransitionProb = currEdge / currForBack;
-        //printf("currTransitionProb: %.10f = %.10f / %.10f\n", currTransitionProb, currEdge, currForBack);
         if(isnan(currTransitionProb)) {
           std::cerr << "ERROR in Baum Welch: nan in transition matrix detected (" << i << ", " << j  << ") ==> " << currEdge << " / " << currForBack << ", breaking. Curr transition matrix is:" << std::endl;
           printMatrix(stderr, this->transition);
@@ -1782,64 +1168,22 @@ void HMM::runBaumWelch(int numBWIters) {
         gsl_matrix_set(updatedTransition, i, j, currTransitionProb);
         currTransitionRowSum += currTransitionProb;
       }
-      //printf("currTransitionRowSum: %.10f\n", currTransitionRowSum);
 
-      // safety check: divide by rowsum to ensure transition matrix entries stay in [0,1], but only if currTransitionRowSum is large enough
-      //if(currTransitionRowSum > 1e-6) {
-        for(j = 0; j < numStates; j++) {
-          currTransitionProb = gsl_matrix_get(updatedTransition, i, j);
-          gsl_matrix_set(updatedTransition, i, j, currTransitionProb / currTransitionRowSum);
-        }
-      //}
+      // safety check: divide by rowsum to ensure transition matrix entries stay in [0,1]
+      for(j = 0; j < numStates; j++) {
+        currTransitionProb = gsl_matrix_get(updatedTransition, i, j);
+        gsl_matrix_set(updatedTransition, i, j, currTransitionProb / currTransitionRowSum);
+      }
     }
     if(transitionUpdateErr) {
       break;
     }
     gsl_matrix_memcpy(this->transition, updatedTransition);
-    //std::cout << "updated transition:" << std::endl;
-    //printMatrix(this->transition);
 
     // update initProb
     gsl_vector_scale(updatedInitProb, 1.0 / chrVec->size());
-    //this->findSteadyStateDist(updatedInitProb);
     gsl_vector_memcpy(this->initProb, updatedInitProb);
-    //std::cout << "updated initProb" << std::endl;
-    //printColVector(this->initProb);
 
-    /*// update emission probs
-    std::cout << "updated libs" << std::endl;
-    // scale each cell's entry by summed forBack across all states and genomic positions
-    for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-      currSA = gsl_vector_get(estLibScaling, cellIdx) / firstDepthPair->numWindows; // sum across all genomic positions for all states of the forBack (gamma) matrix is the same as the sum of all cols in that matrix. Each col sums to 1 (by definition) and so this is just the number of all genomic positions.
-      this->setLibScalingFactor(cellIdx, currSA);
-      std::cout << this->getLibScalingFactor(cellIdx) << std::endl;
-    }
-    std::cout << std::endl;*/
-
-    /*// TODO Mon 22 Jun 2020 11:11:04 AM PDT check if the stat dist from BW predicts the correct number of total reads
-    // stat dist libs. Wed 21 Oct 2020 07:51:39 PM PDT this doesn't work if have absorbing states
-    // let X_ij ~ NB(ploidy_i * DR_i / 2 + epsilon) * c_j
-    // where c_j = T_j / (n * epsilon + sum_windows (DR_j / 2 * weighted avg ploidy (by stationary dist) + epsilon))
-    // get weighted avg ploidy
-    this->findSteadyStateDist(updatedInitProb);
-    //std::cout << "updated steady state dist:" << std::endl;
-    //printColVector(updatedInitProb);
-    //std::cout << "updated libs" << std::endl;
-    for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-      currDepths = (*this->depths)[cellIdx];
-      weightedAvgPloidy = 0;
-      for(stateIdx = 0; stateIdx < (int) updatedInitProb->size; stateIdx++) {
-        currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-        weightedAvgPloidy += currPloidy * gsl_vector_get(updatedInitProb, stateIdx);
-      }
-      currSA = currDepths->tumorLibrarySize / (currDepths->diploidLibrarySize / 2.0 * weightedAvgPloidy + nEps);
-
-      //this->setLibScalingFactor(cellIdx, currSA);
-      std::cerr << bwIters << "\tupdatedLib_" << cellIdx << "_stat\t" << currSA << std::endl;
-
-      //double estT = this->getLibScalingFactor(cellIdx) * (currDepths->diploidLibrarySize / 2.0 * weightedAvgPloidy + nEps);
-      //std::cout << "######### storedLib: " << this->getLibScalingFactor(cellIdx) << ", estT: " << estT << ", trueT: " << currDepths->tumorLibrarySize << std::endl;
-    }*/
     // viterbi libs
     this->estLibScalingFactorsPosterior();
     for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
@@ -1850,24 +1194,19 @@ void HMM::runBaumWelch(int numBWIters) {
     // compare updated transition mat to orig mat
     if(simTrMat != nullptr) {
       currChiSq = calcChiSqOfMatrix(simTrMat, this->transition);
-      //std::cout << "Curr chiSq between simulation matrix and current transition matrix: " << currChiSq << std::endl;
-      //std::cerr << bwIters << "\tCurr chiSq between simulation matrix and current transition matrix:\t" << currChiSq << std::endl;
-      std::cerr << bwIters << "\tcurrChiSq_sim_curr\t" << currChiSq << std::endl;
+      if(this->gradientDebug) {
+        std::cerr << bwIters << "\tcurrChiSq_sim_curr\t" << currChiSq << std::endl;
+      }
 
       currChiSq = calcChiSqOfMatrix(prevTrMat, this->transition);
-      //std::cout << "Curr chiSq between previous transition matrix and current transition matrix: " << currChiSq << std::endl;
-      //std::cerr << bwIters << "\tCurr chiSq between previous transition matrix and current transition matrix:\t" << currChiSq << std::endl;
-      std::cerr << bwIters << "\tcurrChiSq_prev_curr\t" << currChiSq << std::endl;
+      if(this->gradientDebug) {
+        std::cerr << bwIters << "\tcurrChiSq_prev_curr\t" << currChiSq << std::endl;
+      }
       gsl_matrix_memcpy(prevTrMat, this->transition);
     }
 
     // check change in loglikelihood
     currTotalLik = this->getLogLikelihood();
-    //std::cout << "currTotalLik: " << currTotalLik << std::endl;
-    //std::cout << "diffTotalLik: " << currTotalLik - prevTotalLik << std::endl;
-    //std::cout << bwIters << "\tcurrTotalLik:\t" << currTotalLik << std::endl;
-    //std::cout << bwIters << "\tdiffTotalLik:\t" << currTotalLik - prevTotalLik << std::endl;
-    //std::cout << "End of BW iter " << bwIters << std::endl;
 
     end = std::chrono::steady_clock::now();
     elapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0;
@@ -1904,14 +1243,11 @@ void HMM::runBaumWelch(int numBWIters) {
     gsl_matrix_free(*itr);
   }
   delete edgeMatVec;
-  //gsl_vector_free(estLibScaling);
 }
 
 /*
  * Viterbi algorithm for decoding all cells
  * sets chrToViterbiPathMap for DepthPairs
- *
- * //returns number of state transitions decoded
  */
 void HMM::viterbiDecode() {
   gsl_matrix_set_zero(this->numTransitionsMat);
@@ -1923,8 +1259,6 @@ void HMM::viterbiDecode() {
   gsl_matrix* forwardMat = nullptr;
   double scalingFactor = 0;
 
-  //double currTumorDepth = -1;
-  //double currDiploidDepth = -1;
   double emissionProb = -1;
   double currMax = -1;
   int currPloidy = -1;
@@ -1951,37 +1285,14 @@ void HMM::viterbiDecode() {
     }
     (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
 
-    //currTumorDepth = -1;
     emissionProb = 1;
-    //currPloidy = -1;
-    //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[0];
     // for each state in first col
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      //emissionProb = 0;
-
-      //// for each cell, calc the emission prob and multiply by it
-      //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-      //  currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-      //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[0];
-      //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx);
-      //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, 0, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-      //}
-      //currResPloidy = emissionProb * (gsl_vector_get(this->initProb, stateIdx));
-      //gsl_matrix_set(forwardMat, stateIdx, 0, currResPloidy);
-      //std::cout << emissionProb - this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0) << std::endl;
       emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
       currResPloidy = emissionProb + log(gsl_vector_get(this->initProb, stateIdx));
       gsl_matrix_set(forwardMat, stateIdx, 0, exp(currResPloidy));
-      /*if(currRes > currMax) {
-        currMax = currRes;
-        currMaxIdx = i;
-      }*/
     }
 
-    /*// set first col to initProb
-    gsl_matrix_set_col(forwardMat, 0, this->initProb);*/
-
-    //std::cerr << "rescale first col by max" << std::endl;
     // rescale first col by max
     gsl_vector_view firstCol = gsl_matrix_column(forwardMat, 0);
     scalingFactor = gsl_vector_max(&firstCol.vector);
@@ -1991,37 +1302,19 @@ void HMM::viterbiDecode() {
     gsl_vector_set_zero(this->prevForwardCol);
     gsl_vector_set_zero(this->currForwardCol);
     currResPloidy = 0;
-    //std::cerr << "iter through obs seq" << std::endl;
-    //for(i = 1, depthIdx = 0; i < forwardMat->size2; i++, depthIdx++) {
     for(i = 1, depthIdx = 1; i < forwardMat->size2; i++, depthIdx++) {
       gsl_vector_set_zero(this->currForwardCol);
       gsl_matrix_get_col(this->prevForwardCol, forwardMat, i-1);
 
-      //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[i];
-      //currDiploidDepth = (*(*currChrDepthsVec)[this->NUM_CELLS])[depthIdx];
       // iter over states in col i
       for(stateIdx = 0; stateIdx < (int) this->states->size(); stateIdx++) {
-        //emissionProb = 0;
-
-        //// for each cell, calc the emission prob and multiply by it
-        //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-        //  currPloidy = getCellPloidyFromStateIdx(cellIdx, stateIdx);
-        //  currTumorDepth = (*(*currChrDepthsVec)[cellIdx])[depthIdx];
-        //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, cellIdx);
-        //  //emissionProb *= this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, 0, cellIdx);
-        //  emissionProb += log(this->getEmissionProb(currTumorDepth, currDiploidDepth, currPloidy, chrIdx, 0, cellIdx)); // USE THIS ONE; Wed 01 Jul 2020 02:16:18 PM PDT
-        //}
-        //std::cout << emissionProb - this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx) << std::endl;
         emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
-
         currMax = -1;
         currMaxIdx = -1;
+
         // iter over possible transitions
         for(j = 0; j < this->prevForwardCol->size; j++) {
-          //this->currForwardCol[stateIdx] = max(emissionProb * this->prevForwardCol[j] * this->transition[j][stateIdx]);
-          //currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx) + emissionProb * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx);
           currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx) + exp(emissionProb) * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx);
-          //std::cout << "currResPloidy: " << currResPloidy << ", emissionProb: " << emissionProb << ", prevCoL: " << gsl_vector_get(this->prevForwardCol, j) << ", transition: " << gsl_matrix_get(this->transition, j, stateIdx) << std::endl;;
           if(currResPloidy > currMax) {
             currMax = currResPloidy;
             currMaxIdx = j;
@@ -2039,10 +1332,8 @@ void HMM::viterbiDecode() {
 
       // save this->currForwardCol and scalingFactor
       gsl_matrix_set_col(forwardMat, i, this->currForwardCol);
-      //printMatrix(backTrace);
     }
 
-    //std::cerr << "recover seq" << std::endl;
     // recover sequence
     // find best state at end of sequence (ie last col)
     gsl_vector_view lastCol = gsl_matrix_column(forwardMat, forwardMat->size2-1);
@@ -2050,22 +1341,18 @@ void HMM::viterbiDecode() {
     currMaxIdx = gsl_vector_max_index(&lastCol.vector);
 
     // backtrack
-    //std::cout << "currMaxIdx: " << currMaxIdx << std::endl;
     std::vector<std::forward_list<int>> paths(this->NUM_CELLS, std::forward_list<int>());
     for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
       currPloidy = getCellPloidyFromStateIdx(cellIdx, currMaxIdx);
       paths[cellIdx].push_front(currPloidy);
     }
     int prevMaxIdx = currMaxIdx;
-    //for(int k = (int) backTrace->size2-1; k > 1; k--) {
     for(int k = (int) backTrace->size2-1; k > 0; k--) {
       currMaxIdx = gsl_matrix_get(backTrace, currMaxIdx, k);
-      //std::cerr << "currMaxIdx: " << currMaxIdx << ", k: " << k << std::endl;
 
       // count up number of state changes
       gsl_matrix_set(this->numTransitionsMat, currMaxIdx, prevMaxIdx, gsl_matrix_get(this->numTransitionsMat, currMaxIdx, prevMaxIdx) + 1); // going backwards, so indices are flipped
       prevMaxIdx = currMaxIdx;
-      //std::cout << "next currMaxIdx: " << currMaxIdx << ", k: " << k << std::endl;
       for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
         currPloidy = getCellPloidyFromStateIdx(cellIdx, currMaxIdx);
         paths[cellIdx].push_front(currPloidy);
@@ -2079,8 +1366,6 @@ void HMM::viterbiDecode() {
       (*currDepths->chrToViterbiPathMap)[currChr] = new std::vector<int>(std::begin(paths[cellIdx]), std::end(paths[cellIdx]));
     }
   }
-
-  //delete currChrDepthsVec;
 }
 
 
@@ -2137,7 +1422,6 @@ void HMM::calcMargLikelihoods() {
         gsl_matrix_free((*((*this->depths)[cellNum])->forBackMargMatMap)[currChr]);
       }
       int currNumWindows = (*(*this->depths)[0]->regions)[currChr]->size();
-      //gsl_matrix* currMargMat = gsl_matrix_alloc(this->MAX_PLOIDY+1, currNumWindows+1); // because this is marginalized, only need k x numWindows matrix
       gsl_matrix* currMargMat = gsl_matrix_alloc(this->MAX_PLOIDY+1, currNumWindows); // because this is marginalized, only need k x numWindows matrix
       gsl_matrix_set_zero(currMargMat);
       (*((*this->depths)[cellNum])->forBackMargMatMap)[currChr] = currMargMat;
@@ -2160,8 +1444,7 @@ void HMM::calcMargLikelihoods() {
     forBackMat = (*this->forBackMatVec)[chrIdx];
     currChr = (*chrVec)[chrIdx];
 
-    // for each chr position //(indexed by forBackMat, so start at 1) // Wed 17 Jun 2020 03:13:29 PM PDT changed back to 1:1 mapping of times and indices
-    //for(i = 1; i < forBackMat->size2; i++) {
+    // for each chr position
     for(i = 0; i < forBackMat->size2; i++) {
 
       // for each state
@@ -2176,7 +1459,6 @@ void HMM::calcMargLikelihoods() {
           // add the curr forBackMat entry to cell's DepthPair forBackMargMatMap entry
           currForBackMargMat = (*((*this->depths)[cellIdx])->forBackMargMatMap)[currChr];
           currForBackMargProb = gsl_matrix_get(currForBackMargMat, currPloidy, i);
-          //currForBackMargProb += currForBackProb; // use this one if you don't care about the marginal matrices summing to 1 in probability space, and then remove the re-logging below
           currForBackMargProb += exp(currForBackProb);
           gsl_matrix_set(currForBackMargMat, currPloidy, i, currForBackMargProb);
         }
@@ -2193,12 +1475,6 @@ void HMM::calcMargLikelihoods() {
         }
       }
     }
-
-    //for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-    //  std::cout << "cellIdx: " << cellIdx << std::endl;
-    //  currForBackMargMat = (*((*this->depths)[cellIdx])->forBackMargMatMap)[currChr];
-    //  printMatrix(currForBackMargMat);
-    //}
   }
 }
 
@@ -2208,14 +1484,6 @@ void HMM::calcMargLikelihoods() {
  * in passed steadStateVec
  */
 double HMM::findSteadyStateDist(gsl_vector* steadyStateVec) const {
-  /*raiseMatrixToPower(this->transitionTranspose, 500000, this->transition);
-  gsl_vector_view firstRowView = gsl_matrix_row(this->transitionTranspose, 1);
-  std::cout << "transition matrix raised to 500000'th power" << std::endl;
-  printMatrix(this->transitionTranspose);
-  gsl_vector_memcpy(steadyStateVec, &firstRowView.vector);
-  return 0;*/
-
-
   // solve for eigenvalues and eigenvectors pi*P = pi
   // steady state dist is pi such that pi * P = pi
   // pi is the eigenvector corresponding to the eigenvalue of 1 for P^T (ie P transpose)
@@ -2232,12 +1500,6 @@ double HMM::findSteadyStateDist(gsl_vector* steadyStateVec) const {
   double status = gsl_eigen_nonsymmv(this->transitionTranspose, this->ssEval, this->ssEvec, this->ssEigenWorkspace);
 
   if(status != GSL_SUCCESS) {
-    //return false;
-    //printMatrix(this->transition);
-    //printColVector(this->paramsToEst);
-    //exit(-1);
-    //GSL_ERROR("could not find eigenvalues for steady state dist", GSL_EMAXITER);
-
     std::cerr << "ERROR: could not find eigenvalues to find steady state distribution" << std::endl;
     // restore error handler
     gsl_set_error_handler(errHandler);
@@ -2246,11 +1508,6 @@ double HMM::findSteadyStateDist(gsl_vector* steadyStateVec) const {
 
   // get eigenvalue == 1 and corresponding eigenvector. store in steadyStateVec
   bool foundSteadyState = false;
-  /*std::cout << "curr eval_i to find steady state: " << std::endl;
-  for (unsigned int i = 0; i < this->ssEval->size; i++) {
-    gsl_complex eval_i = gsl_vector_complex_get(this->ssEval, i);
-    std::cout << GSL_REAL(eval_i) << std::endl;
-  }*/
   for (unsigned int i = 0; i < this->ssEval->size; i++) {
     gsl_complex eval_i = gsl_vector_complex_get(this->ssEval, i);
 
@@ -2271,13 +1528,11 @@ double HMM::findSteadyStateDist(gsl_vector* steadyStateVec) const {
   }
   if(!foundSteadyState) {
     std::cerr << "ERROR: could not find steady state distribution" << std::endl;
-    //exit(-1);
   }
 
   // restore error handler
   gsl_set_error_handler(errHandler);
   return GSL_SUCCESS;
-  //return foundSteadyState;
 }
 
 /*
@@ -2356,7 +1611,6 @@ void HMM::print(FILE* stream) {
     }
     fprintf(stream, "\n");
   }*/
-  // TODO add timeDepMatrixP printing?
 
   // initProb vector
   fprintf(stream, "initProb vector:\n");
@@ -2394,6 +1648,7 @@ void HMM::print(FILE* stream) {
   // likelihood
   fprintf(stream, "loglikelihood: %.10f\n\n", this->runForwardAlg());
 }
+
 /*
  * helper function to save an HMM to a file, internally calls print
  */
@@ -2417,12 +1672,13 @@ double HMM::checkStateValidity(gsl_matrix* mat, double epsilon) const {
   }
   return 0;
 }
+
 /*
  * Function to check for transient states
  * (ex state 1 is only seen in 0->1->2 or 2->1->0 transitions. That is, 1 is the stepping stone between 0 and 2)
  * transient states are defined as (% time seen as stepping stone state > 80%) && (total num times in state >= 2).
  * Returns nan if transient states are found, 0 o/w
- * As of Mon 07 Jun 2021 11:04:26 AM PDT, these cutoffs are arbitrary and made up
+ * These cutoffs work well in practice
  */
 double HMM::checkForTransientStates() {
   double status = 0;
@@ -2434,7 +1690,6 @@ double HMM::checkForTransientStates() {
   int pathSize = 0;
   gsl_vector* countTransientTimes = gsl_vector_alloc(this->MAX_PLOIDY + 1);
   gsl_vector* countTimesInPloidy = gsl_vector_alloc(this->MAX_PLOIDY + 1);
-  //gsl_vector* countTransitionsIntoPloidy = gsl_vector_alloc(this->MAX_PLOIDY + 1);
   gsl_vector* countTransitionsOutOfPloidy = gsl_vector_alloc(this->MAX_PLOIDY + 1);
   gsl_vector* fracTransient = gsl_vector_alloc(this->MAX_PLOIDY + 1);
 
@@ -2445,7 +1700,6 @@ double HMM::checkForTransientStates() {
     currDepths = (*this->depths)[cellIdx];
     gsl_vector_set_zero(countTransientTimes);
     gsl_vector_set_zero(countTimesInPloidy);
-    //gsl_vector_set_zero(countTransitionsIntoPloidy);
     gsl_vector_set_zero(countTransitionsOutOfPloidy);
     gsl_vector_set_zero(fracTransient);
 
@@ -2453,31 +1707,13 @@ double HMM::checkForTransientStates() {
     for(unsigned int chrIdx = 0; chrIdx < chrVec->size(); chrIdx++) {
       std::string currChr = (*chrVec)[chrIdx];
       currVitPath = (*currDepths->chrToViterbiPathMap)[currChr];
-      /*currVitPath = new std::vector<int>();
-      if(chrIdx == 0) {
-      currVitPath->push_back(0);
-      currVitPath->push_back(1);
-      currVitPath->push_back(2);
-      currVitPath->push_back(2);
-      currVitPath->push_back(5);
-      currVitPath->push_back(0);
-      }
-      if(chrIdx == 1) {
-      currVitPath->push_back(2);
-      currVitPath->push_back(1);
-      currVitPath->push_back(0);
-      currVitPath->push_back(2);
-      currVitPath->push_back(0);
-      currVitPath->push_back(0);
-      }*/
 
       // for each window in currChr, get run length encoding
       pathSize = currVitPath->size();
       for(int regionIdx = 0; regionIdx < pathSize; regionIdx++) {
         stateCount = 1;
         currVitState = (*currVitPath)[regionIdx];
-        //gsl_vector_set(countTransitionsIntoPloidy, currVitState, gsl_vector_get(countTransitionsIntoPloidy, currVitState) + 1);
-        //std::cout << "regionidx: " << regionIdx << ", curr: " << (*currVitPath)[regionIdx] << ", next: " << (*currVitPath)[regionIdx + 1] << std::endl;
+
         while(regionIdx < pathSize - 1 && (*currVitPath)[regionIdx] == (*currVitPath)[regionIdx + 1]) {
           regionIdx++;
           stateCount++;
@@ -2490,47 +1726,24 @@ double HMM::checkForTransientStates() {
         gsl_vector_set(countTimesInPloidy, currVitState, gsl_vector_get(countTimesInPloidy, currVitState) + stateCount);
         gsl_vector_set(countTransitionsOutOfPloidy, currVitState, gsl_vector_get(countTransitionsOutOfPloidy, currVitState) + 1);
       }
-      //std::cout << "next chr" << std::endl;
-      //printRowVector(countTransientTimes);
-      //printRowVector(countTimesInPloidy);
     }
-    //std::cout << "done itering over chrs" << std::endl;
 
     // check if this cell has any transient states. if so, set status to GSL_NAN and break. else, continue to next cell
     gsl_vector_memcpy(fracTransient, countTransientTimes);
-    //gsl_vector_div(fracTransient, countTimesInPloidy);
     gsl_vector_div(fracTransient, countTransitionsOutOfPloidy);
-    std::cout << "HMM::checkForTransientStates countTransientTimes, countTimesInPloidy, countTransitionsOutOfPloidy, fracTransient" << std::endl;
-    printColVector(countTransientTimes);
-    printColVector(countTimesInPloidy);
-    //printColVector(countTransitionsIntoPloidy);
-    printColVector(countTransitionsOutOfPloidy);
-    printColVector(fracTransient);
-    /*int countTotalTransient = 0;
-    double frac = 0;
-    for(unsigned int i = 0; i < fracTransient->size; i++) {
-      frac = gsl_vector_get(fracTransient, i);
-      //if(!gsl_isnan(frac) && frac > 0.8 && gsl_vector_get(countTimesInPloidy, i) >= 2) {
-      //if(!gsl_isnan(frac) && frac >= 0.49 && gsl_vector_get(countTimesInPloidy, i) >= 1) {
-      //if(!gsl_isnan(frac) && frac > 0.5 && gsl_vector_get(countTransitionsOutOfPloidy, i) >= 2) {
-      if(!gsl_isnan(frac) && frac >= 0.3 && gsl_vector_get(countTransitionsOutOfPloidy, i) >= 1) {
-        //std::cout << "detected transient state at idx " << i << std::endl;
-        countTotalTransient++;
-        //status = GSL_NAN;
-        //break;
-      }
+    if(this->gradientDebug) {
+      std::cout << "HMM::checkForTransientStates countTransientTimes, countTimesInPloidy, countTransitionsOutOfPloidy, fracTransient" << std::endl;
+      printColVector(countTransientTimes);
+      printColVector(countTimesInPloidy);
+      printColVector(countTransitionsOutOfPloidy);
+      printColVector(fracTransient);
     }
-    if(countTotalTransient >= 1) {
-      status = GSL_NAN;
-    }*/
     double sumTransient = gsl_blas_dasum(countTransientTimes); // Double Absolute SUM
-    //if(sumTransient >= 5.9) { // transient4 transient threshold
-    if(sumTransient >= 4.9) { // transient5
+    if(sumTransient >= 4.9) {
       status = GSL_NAN;
       break;
     }
     if(gsl_isnan(status)) { // break out of cell loop
-      //std::cout << "breaking cell loop" << std::endl;
       break;
     }
   }
@@ -2623,16 +1836,13 @@ int HMM::getRandStateIdx(double p, int fromStateIdx) const {
 int HMM::getRandStateIdx(double p, gsl_vector* probVec) const {
   double cummSum = 0;
   int toState = 0;
-  //std::cout << "p: " << p << std::endl;
   for(unsigned int i = 0; i < this->states->size(); i++) {
     if(cummSum > p) {
       break;
     }
     cummSum += gsl_vector_get(probVec, i);
-    //std::cout << cummSum << std::endl;
     toState = i;
   }
-  //std::cout << "to " << toState << std::endl;
   return toState;
 }
 
