@@ -1,7 +1,6 @@
 #include "AllInd2Stages3TrParam2DegPolyHMM.hpp"
 
 // ctors and destructors
-//AllInd2Stages3TrParam2DegPolyHMM::AllInd2Stages3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, std::vector<std::string>* sampleList, int maxPloidy, int numPairsStage1, int numPairsStage2, bool gradientDebug) :
 AllInd2Stages3TrParam2DegPolyHMM::AllInd2Stages3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, std::vector<std::string>* sampleList, int maxPloidy, bool gradientDebug) :
                                         NUM_CELLS(depths->size()),
                                         NUM_SHARED_TRANSITION_PARAMS_TO_EST(2), // beta, lambda
@@ -73,14 +72,14 @@ void AllInd2Stages3TrParam2DegPolyHMM::setSampleList(std::vector<std::string>* s
 }
 
 int AllInd2Stages3TrParam2DegPolyHMM::getInitGuessSize() const {
-  return this->bfgsAllInd->getNumParamsToEst(); // Wed 01 Jul 2020 03:36:29 PM PDT every param to be estimated has an entry here
+  return this->bfgsAllInd->getNumParamsToEst();
 }
 
 int AllInd2Stages3TrParam2DegPolyHMM::getBWInitGuessSize() const {
   if(this->bwAllInd == nullptr) {
     return 0;
   }
-  return this->bwAllInd->getNumParamsToEst(); // Wed 01 Jul 2020 03:36:29 PM PDT every param to be estimated has an entry here
+  return this->bwAllInd->getNumParamsToEst();
 }
 
 // likelihood methods
@@ -121,6 +120,7 @@ void AllInd2Stages3TrParam2DegPolyHMM::setInitGuessNthTime(gsl_vector* initGuess
     this->setSharedInitGuess(initGuess, 1.25, 0.12, 15, 0.02);
   }
 }
+
 /*
  * function to set elements of initGuess (which is the same size as paramsToEst) to shared
  * values of lib, beta, lambda, t

@@ -23,7 +23,6 @@
  *
  * Then branch lengths (and optionally shared transition params and library sizes) are
  * estimated through BFGS.
- * As of Tue 16 Feb 2021 02:50:35 PM PST, unclear if 2 stages is necessary for time saving reasons
  *
  * All paramter storage is delegated to its member variables.
  */
