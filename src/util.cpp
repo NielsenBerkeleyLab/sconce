@@ -9,7 +9,6 @@ void printMatrix(gsl_matrix* mat) {
 void printMatrix(FILE* stream, gsl_matrix* mat) {
   for(unsigned int i = 0; i < mat->size1; i++) {
     for(unsigned int j = 0; j < mat->size2; j++) {
-      //fprintf(stream, "%0.5g \t", gsl_matrix_get(mat, i, j));
       fprintf(stream, "%0.15g \t", gsl_matrix_get(mat, i, j));
     }
     fprintf(stream, "\n");
@@ -26,7 +25,6 @@ void printRowVector(gsl_vector* vec) {
 void printRowVector(FILE* stream, gsl_vector* vec) {
   for(unsigned int i = 0; i < vec->size; i++) {
     fprintf(stream, "%.40f \t", gsl_vector_get(vec, i));
-    //fprintf(stream, "%f \t", gsl_vector_get(vec, i));
   }
   fprintf(stream, "\n");
 }
@@ -108,8 +106,6 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
     gsl_set_error_handler(errHandler);
     return GSL_NAN;
   }
-  //std::cout << "srcQ:" << std::endl;
-  //printMatrix(srcQ);
 
   // convert eval into diagMat
   gsl_matrix_set_zero(diagMat);
@@ -117,9 +113,6 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
   for(unsigned int i = 0; i < eval->size; i++) {
     gsl_matrix_set(diagMat, i, i, gsl_vector_get(&evalReal.vector, i));
   }
-  //std::cout << "evalReal, diagMat:" << std::endl;
-  //printColVector(&evalReal.vector);
-  //printMatrix(diagMat);
 
   // extract real portions of evec
   for(unsigned int row = 0; row < evec->size1; row++) {
@@ -127,13 +120,10 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
       gsl_matrix_set(realEvecMat, row, col, GSL_REAL(gsl_matrix_complex_get(evec, row, col)));
     }
   }
-  //std::cout << "realEvecMat:" << std::endl;
-  //printMatrix(realEvecMat);
 
   // find inverse of eigenvectors matrix. from https://gist.github.com/bjd2385/7f4685e703f7437e513608f41c65bbd7
   int s;
   gsl_matrix_memcpy(LUdecompMat, realEvecMat);
-  //gsl_permutation* p = gsl_permutation_alloc(srcQ->size1);
 
   // Compute the LU decomposition of this matrix: https://www.gnu.org/software/gsl/doc/html/linalg.html#c.gsl_linalg_LU_decomp
   status = gsl_linalg_LU_decomp(LUdecompMat, perm, &s);
@@ -144,10 +134,8 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
     gsl_set_error_handler(errHandler);
     return GSL_NAN;
   }
-  //printMatrix(LUdecompMat);
 
   // Compute the  inverse of the LU decomposition: https://www.gnu.org/software/gsl/doc/html/linalg.html#c.gsl_linalg_LU_invert
-  //gsl_matrix* inv = gsl_matrix_alloc(size, size);
   status = gsl_linalg_LU_invert(LUdecompMat, perm, inverseMat);
   if(status != GSL_SUCCESS) {
     std::cerr << "ERROR: could not invert LU decomposition in matrixExponential" << std::endl;
@@ -156,8 +144,6 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
     gsl_set_error_handler(errHandler);
     return GSL_NAN;
   }
-  //std::cout << "inverseMat" << std::endl;
-  //printMatrix(inverseMat);
 
   // raise diagMat to the correct power
   double expValue = 0;
@@ -166,18 +152,11 @@ double matrixExponential(gsl_matrix* destP, gsl_matrix* srcQ, double t, gsl_eige
     expValue = exp(expValue * t);
     gsl_matrix_set(diagMat, i, i, expValue);
   }
-  //std::cout << "diagMat after exp" << std::endl;
-  //printMatrix(diagMat);
   
   // multiply everything back together: https://www.gnu.org/software/gsl/doc/html/blas.html#c.gsl_blas_dgemm
-  //gsl_matrix_view evecReal = gsl_matrix_complex_real(evec);
-  // need an intermediate matrix for multiplicationstorage , use LUdecompMat for convenience
+  // need an intermediate matrix for multiplication storage , use LUdecompMat for convenience
   gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, realEvecMat, diagMat, 0.0, LUdecompMat); // Double GEneral Matrix Multiplication
-  //std::cout << "LUdecompMat after first mult" << std::endl;
-  //printMatrix(LUdecompMat);
   gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, LUdecompMat, inverseMat, 0.0, destP); // Double GEneral Matrix Multiplication
-  //std::cout << "destP after second mult" << std::endl;
-  //printMatrix(destP);
   if(status != GSL_SUCCESS) {
     std::cerr << "ERROR: could not multiply matrices in matrixExponential" << std::endl;
 
