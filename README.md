@@ -10,9 +10,9 @@ SCONCE is written in C++11, and requires
 - GSL (tested on v2.4)
 
 ## Installation instructions
-1. Clone this repo
+1. Clone this repo: `git clone git@github.com:NielsenBerkeleyLab/sconce.git`.
 
-2. Run `make`. This should create an executable named `sconce`.
+2. Run `make`. This will build intermediates and create an executable named `sconce`.
 
 ## Example run
 
