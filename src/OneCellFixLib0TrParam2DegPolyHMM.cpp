@@ -6,7 +6,6 @@
  ********
  */
 OneCellFixLib0TrParam2DegPolyHMM::OneCellFixLib0TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int maxPloidy) : OneCellFixLib0TrParam2DegPolyHMM(depths, fixedParams, maxPloidy, 0, 3, 1, 1) { // fixedParams, 0 transition params to est, 3 fixedTrParams, 1 fixedLibs, 1 branch
-  //this->updateTotalLogEmissionLookup(); // call here, not in other ctor, since it relies on polymorphism to call correct setTransition() // Mon 27 Jul 2020 07:36:54 PM PDT causing problems because setMeanVarianceFn hasn't been called yet
 }
 OneCellFixLib0TrParam2DegPolyHMM::OneCellFixLib0TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int maxPloidy, int numTrParamsToEst, int numFixedTrParams, int numFixedLibs, int numBranches) : OneCell0TrParam2DegPolyHMM(depths, fixedParams, maxPloidy, numTrParamsToEst, numFixedTrParams, numFixedLibs, numBranches) {
   this->maxNumBFGSStarts = 0;
@@ -22,12 +21,6 @@ OneCellFixLib0TrParam2DegPolyHMM::OneCellFixLib0TrParam2DegPolyHMM(std::vector<D
     this->totalLogEmissionLookup->push_back(gsl_matrix_alloc(currNumWindows, this->states->size()));
     gsl_matrix_set_zero((*this->totalLogEmissionLookup)[chrIdx]);
   }
-  //this->updateTotalLogEmissionLookup();
-
-  /*// set fixedParams with library sizes
-  double totalAvgDiploidDepth = (*this->depths)[0]->getTotalDiploidDepth();
-  this->setLibScalingFactor(0, (*this->depths)[0]->getTotalTumorDepth() / totalAvgDiploidDepth);
-  this->setLibScalingFactor(1, (*this->depths)[1]->getTotalTumorDepth() / totalAvgDiploidDepth);*/ // Mon 27 Jan 2020 07:10:45 PM PST passed fixedParams already contains lib sizes
 }
 
 OneCellFixLib0TrParam2DegPolyHMM::~OneCellFixLib0TrParam2DegPolyHMM() {
@@ -62,7 +55,6 @@ double OneCellFixLib0TrParam2DegPolyHMM::getTotalLogEmissionProb(int stateIdx, s
  * same as OneCellFixLib3TrParam2DegPolyHMM
  */
 void OneCellFixLib0TrParam2DegPolyHMM::updateTotalLogEmissionLookup() {
-  //std::cout << "OneCellFixLib0TrParam2DegPolyHMM::updateTotalLogEmissionLookup" << std::endl;
   std::vector<std::string>* chrVec = this->getChrVec();
   std::vector<std::vector<double>*>* currChrDepthsVec = new std::vector<std::vector<double>*>(this->NUM_CELLS + 1);
   DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
@@ -98,9 +90,6 @@ void OneCellFixLib0TrParam2DegPolyHMM::setMeanVarianceFn(gsl_vector* meanVarianc
  ********
  */
 void OneCellFixLib0TrParam2DegPolyHMM::convertProbToParam(gsl_vector* dest, const gsl_vector* src) const {
-  //double d = (double) (*this->depths)[0]->maxWindowSize;
-  //double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX) / d;
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(-(d * t) / (d * t - 1))); // set T
   double t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, log(t));
 }
@@ -110,8 +99,6 @@ void OneCellFixLib0TrParam2DegPolyHMM::convertProbToParam(gsl_vector* dest, cons
  */
 void OneCellFixLib0TrParam2DegPolyHMM::convertParamToProb(gsl_vector* dest, const gsl_vector* src) const {
   double T = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX);
-  //double c = 1.0 / (1 + exp(T));
-  //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T) * c); // set t
   gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX, exp(T)); // set t
 }
 
@@ -130,6 +117,5 @@ OneCellFixLib0TrParam2DegPolyHMM* OneCellFixLib0TrParam2DegPolyHMM::bfgs(gsl_vec
 void OneCellFixLib0TrParam2DegPolyHMM::miscFunctions() {
   // do nothing. This is usually used to kick off viterbi decoding for lib size est
   // but in this class, lib sizes are fixed
-  //std::cerr << "in OneCellFixLib0TrParam2DegPolyHMM::miscFunctions(), doing nothing" << std::endl;
 }
 

@@ -4,11 +4,9 @@
 #include "OneCell0TrParam2DegPolyHMM.hpp"
 
 /*
- * //Library size, alpha/beta/gamma are all fixed. Est branch length
  * Library size, alpha/beta/lambda are all fixed. Est branch length
  *
  * this->paramsToEst = [t]
- * //this->fixedParams = [lib, alpha, beta, gamma]
  * this->fixedParams = [lib, alpha, beta, lambda]
  */
 class OneCellFixLib0TrParam2DegPolyHMM : public OneCell0TrParam2DegPolyHMM {
@@ -40,5 +38,4 @@ class OneCellFixLib0TrParam2DegPolyHMM : public OneCell0TrParam2DegPolyHMM {
 };
 
 #endif
-
 
