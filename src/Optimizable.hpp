@@ -22,10 +22,10 @@ typedef boost::minstd_rand base_generator_type;
  */
 class Optimizable {
   protected:
-    double initLl = 0; // Sat 23 May 2020 12:13:52 PM PDT debugging, for saving the init likelihood as a penalty term
+    double initLl = 0;
     gsl_vector* paramsToEst; // params to estimate with BFGS; indicies into vector laid out in subclasses
     gsl_vector* fixedParams; // fixed parameters, such as lib sizes or alpha/beta/gamma, depending on subclass. Ordering is the same as paramsToEst
-    bool optimSuccess; // flag to indicate if the bfgs optimization failed or not. TODO consider changing this to an int to save more detailed statuses, rather than a binary flag
+    bool optimSuccess; // flag to indicate if the bfgs optimization failed or not
     int maxNumBFGSStarts; // maximum number of starting points for optimization, usually set by setInitGuessNthTime
     double changeInBFGSLoglikelihood; // total change in loglikelihood after BFGS
     gsl_vector* initGuessCopyBeforeBFGS; // copy of initGuess, before BFGS. useful for keeping variables from changing too much from initial values
@@ -60,7 +60,7 @@ class Optimizable {
     virtual void setSimFixedParams(gsl_vector* params) = 0;
 
     static double evalLikelihoodAtPoint(const gsl_vector* v, void* params);
-    static void evalGradientAtPoint(const gsl_vector* v, void* params, gsl_vector* df); // TODO evalGradientAtPoint and evalLikelihoodGradAtPoint are the same in HMM and AllPairs_. consider moving into Optimizable? ==> also evalLikelihoodAtPoint turns out to be the same? would need to add a checkParams method. this would also conveniently get rid of the problem with the non-static versions changing the calling object
+    static void evalGradientAtPoint(const gsl_vector* v, void* params, gsl_vector* df);
     static void evalLikelihoodGradAtPoint(const gsl_vector* v, void* params, double* f, gsl_vector* df);
 
     // shared implementations
