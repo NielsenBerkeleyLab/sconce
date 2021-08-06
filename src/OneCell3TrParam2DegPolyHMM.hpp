@@ -5,38 +5,26 @@
 #include <gsl/gsl_statistics_double.h>
 
 /*
- * //This class analyzes 1 cell for CNVs, by allowing library size, beta/gamma, and t to vary.
  * This class analyzes 1 cell for CNVs, by allowing library size, beta/lambda, and t to vary.
  * alpha is fixed.
  *
- * //this->paramsToEst = [lib, beta, gamma, t]
  * this->paramsToEst = [lib, beta, lambda, t]
  * this->fixedParams = [alpha]
  */
 class OneCell3TrParam2DegPolyHMM : public HMM {
   private:
     // member variables
-    // TODO move meanVarianceFn to here?
     std::vector<double>* logFacKVec; // k:[log(k!)]
     double getLogFacK(int k);
     void setLogFacK();
 
-    // variables and fns that have to do with least squares
-    //gsl_matrix* coefs = nullptr;
-    //gsl_vector* residuals = nullptr;
-    //gsl_vector* a_ij = nullptr; // residuals from baum welch, not very useful
-    //gsl_matrix* baumWelchTransitionMat = nullptr;
-
   protected:
     OneCell3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int maxPloidy, int numTrParamsToEst, int numFixedTrParams, int numFixedLibs, int numBranches);
-    //double setTransition(gsl_matrix* dest, double alpha, double beta, double gamma, double t);
     double setTransition(gsl_matrix* dest, double alpha, double beta, double lambda, double t);
 
   public:
     // constructors and destructor
-    //OneCell3TrParam2DegPolyHMM();
     OneCell3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, int maxPloidy);
-    //OneCell3TrParam2DegPolyHMM(const OneCell3TrParam2DegPolyHMM& otherHMM);
     virtual ~OneCell3TrParam2DegPolyHMM();
 
     // accessors and mutators
@@ -53,7 +41,6 @@ class OneCell3TrParam2DegPolyHMM : public HMM {
     virtual void convertParamToProb(gsl_vector* dest, const gsl_vector* src) const override;
 
     // functions that depend on model
-    //virtual int getMaxNumBFGSStarts() const override;
     virtual double getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) override;
     virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) override;
     virtual OneCell3TrParam2DegPolyHMM* bfgs(gsl_vector* initGuess, bool verbose = true) override;
