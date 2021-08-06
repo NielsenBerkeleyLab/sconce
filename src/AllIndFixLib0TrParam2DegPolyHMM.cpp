@@ -13,7 +13,6 @@ AllIndFixLib0TrParam2DegPolyHMM::AllIndFixLib0TrParam2DegPolyHMM(std::vector<Dep
 }
 
 void AllIndFixLib0TrParam2DegPolyHMM::makeHMMs(gsl_vector* meanVarianceCoefVec, gsl_vector* transitionParams) {
-  std::cout << "in AllIndFixLib0TrParam2DegPolyHMM::makeHMMs" << std::endl;
   std::vector<DepthPair*>* currDepths = nullptr;
   gsl_vector* currMeanVarCoefVec = nullptr; // make them all have their own copies of this vector
   gsl_vector* currFixedParams = nullptr;
@@ -38,7 +37,6 @@ void AllIndFixLib0TrParam2DegPolyHMM::makeHMMs(gsl_vector* meanVarianceCoefVec, 
     gsl_vector_memcpy(currMeanVarCoefVec, meanVarianceCoefVec);
     hmm->setMeanVarianceFn(currMeanVarCoefVec);
     hmm->setTransition(transitionParams); // this vector isn't saved anywhere
-    //hmm->setLibScalingFactorsToTotalRatio(); // libs are in fixedParams
     hmm->setAlpha(this->getAlpha());
 
     this->setLibScalingFactor(hmmIdx, hmm->getLibScalingFactor(0));
@@ -103,28 +101,19 @@ double AllIndFixLib0TrParam2DegPolyHMM::setParamsToEst(gsl_vector* params) {
  * these are the same, just scaled up
  */
 void AllIndFixLib0TrParam2DegPolyHMM::convertProbToParam(gsl_vector* dest, const gsl_vector* src) const {
-  //std::cout << "AllIndFixLib0TrParam2DegPolyHMM::convertProbToParam" << std::endl;
 
   // branch lengths
-  //double d = (double) (*this->depthsVec)[0]->maxWindowSize;
   double t = 0;
   for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-    //t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX + cellIdx + 0) / d;
-    //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX + cellIdx, log(-(d * t) / (d * t - 1))); // set T
     t = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX + cellIdx + 0);
     gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX + cellIdx, log(t)); // set T
   }
 }
 
 void AllIndFixLib0TrParam2DegPolyHMM::convertParamToProb(gsl_vector* dest, const gsl_vector* src) const {
-  //std::cout << "AllIndFixLib0TrParam2DegPolyHMM::convertParamToProb" << std::endl;
   // branch lengths
   double T = 0;
-  //double c = 0;
   for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-    //T = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX + cellIdx);
-    //c = 1.0 / (1 + exp(T));
-    //gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX + cellIdx + 0, exp(T) * c); // set t1
     T = gsl_vector_get(src, this->BRANCH_LENGTH_START_IDX + cellIdx);
     gsl_vector_set(dest, this->BRANCH_LENGTH_START_IDX + cellIdx + 0, exp(T)); // set t1
   }
@@ -167,7 +156,6 @@ void AllIndFixLib0TrParam2DegPolyHMM::setSimFixedParams(gsl_vector* params) {
   gsl_vector* currHMMParams = gsl_vector_alloc(numHMMParams);
   double alpha = this->getAlpha();
   double beta  = gsl_vector_get(params, this->SHARED_TRANSITION_PROB_START_IDX + 0);
-  //double gamma = gsl_vector_get(params, this->SHARED_TRANSITION_PROB_START_IDX + 1);
   double lambda = gsl_vector_get(params, this->SHARED_TRANSITION_PROB_START_IDX + 1);
   double currLib = 0;
 
@@ -175,27 +163,13 @@ void AllIndFixLib0TrParam2DegPolyHMM::setSimFixedParams(gsl_vector* params) {
     // lib
     currLib = gsl_vector_get(params, this->LIB_SIZE_SCALING_FACTOR_START_IDX + hmmIdx);
     gsl_vector_set(currHMMParams, hmmLibIdx, currLib);
+
     gsl_vector_set(currHMMParams, hmmTrIdx + 0, alpha);
     gsl_vector_set(currHMMParams, hmmTrIdx + 1, beta);
-    //gsl_vector_set(currHMMParams, hmmTrIdx + 2, gamma);
     gsl_vector_set(currHMMParams, hmmTrIdx + 2, lambda);
     (*this->hmmVec)[hmmIdx]->setSimFixedParams(currHMMParams);
   }
 }
-
-///*
-// * this function currently does nothing Tue 28 Jul 2020 06:57:17 PM PDT
-// */
-//void AllIndFixLib0TrParam2DegPolyHMM::miscFunctions() {
-//}
-
-//AllIndFixLib0TrParam2DegPolyHMM* AllIndFixLib0TrParam2DegPolyHMM::bfgs(gsl_vector* initGuess, bool verbose) {
-//  AllIndFixLib0TrParam2DegPolyHMM* bestGuessOptim = this;
-//  gsl_vector* initGuessAsParams = gsl_vector_alloc(initGuess->size);
-//  this->convertProbToParam(initGuessAsParams, initGuess);
-//  Optimizable::bfgs(initGuessAsParams, bestGuessOptim, verbose);
-//  return bestGuessOptim;
-//}
 
 void AllIndFixLib0TrParam2DegPolyHMM::setInitGuessNthTime(gsl_vector* initGuess, int iter, int numTotalRuns) const {
   gsl_vector_set_zero(initGuess);
