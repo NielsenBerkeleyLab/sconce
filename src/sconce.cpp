@@ -15,12 +15,9 @@
 namespace po = boost::program_options;
 
 /*
- * Tue 16 Feb 2021 01:35:17 PM PST
- * program to independently analyze all cells passed in (as opposed to pairs)
- * if you pass in a list of tumor cells, all transition parameters (beta/lambda) will be shared among them
- * if you pass in one tumor cell filename, it'll have its own transition parameters (this is how to make completely indepdendent runs)
+ * This is the main function for SCONCE, used to independently call
+ * copy number variants in single cell cancer sequencing data
  */
-
 int main(int argc, char** argv) {
   // DEBUGGING: TURN OFF BUFFERING. from https://stackoverflow.com/a/1716621
   setbuf(stdout, NULL);
@@ -184,6 +181,7 @@ int main(int argc, char** argv) {
       gsl_vector* simParamsForBw = gsl_vector_alloc(bwHMM->getNumParamsToEst());
       gsl_vector* fixedParamsForBw = gsl_vector_alloc(bwHMM->getNumFixedParams());
       int simParamsIdx = 0;
+
       // libs
       for(; simParamsIdx < numCells; simParamsIdx++) {
         gsl_vector_set(simParamsForBw, simParamsIdx, lib);
@@ -207,8 +205,6 @@ int main(int argc, char** argv) {
 
     std::cout << "######## DONE WITH BAUM WELCH INITIALIZATION. BWINITGUESS IS ########" << std::endl;
     
-    // INSERT bwInitGuess DEBUGGING SHORTCUTS HERE
-
     printColVector(bwInitGuess);
     allIndHMM->print(stdout);
   }
@@ -247,7 +243,6 @@ int main(int argc, char** argv) {
       paramsToEstStartFromBW = gsl_vector_alloc(numCells + 2 + numCells); // libs + beta/lambda + one branch per cell
       gsl_vector_memcpy(paramsToEstStartFromBW, bwInitGuess);
     }
-
   }
   // else using transition param estimates from baum welch
   else {
@@ -323,9 +318,6 @@ int main(int argc, char** argv) {
     }
   }
 
-
-  //bfgsAllInd->setLibScalingFactor(0, 1.3912459941748089864432813556049950420856); // debugging
-
   std::cout << "######## STARTING INDCELLS STAGE 2 BFGS ########" << std::endl;
   bfgsAllInd->print(stdout);
   bfgsInitLl = bfgsAllInd->getLogLikelihood();
@@ -337,7 +329,6 @@ int main(int argc, char** argv) {
   std::cout << "######## DONE WITH INDCELLS STAGE 2 BFGS ########" << std::endl;
   bfgsAllInd->print(stdout);
   optimLL = allIndHMM->getBFGSAllIndLogLikelihood();
-
 
   std::chrono::steady_clock::time_point decodeStart = std::chrono::steady_clock::now();
   allIndHMM->viterbiDecode();
