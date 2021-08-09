@@ -59,19 +59,19 @@ int main(int argc, char** argv) {
   try {
     po::options_description cmdLineOps("Command line options");
     cmdLineOps.add_options()
-      ("help,h", "help message")
+      ("help,h", "this help message")
       ("diploid,d", po::value<std::string>(&diploidFile)->required(), "path to diploid depth file")
       ("tumorFilename,s", po::value<std::string>(&tumorFilename), "path to single tumor depth file (ie to do fully independent runs)")
       ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
-      ("fixLib,f", po::bool_switch(&fixLib)->default_value(false), "fix library sizes after baum welch estimation")
       ("verbose,v", po::bool_switch(&verbose)->default_value(false), "enable debugging statements")
       //("simParamFile,m", po::value<std::string>(&simParamFile), "path to simulation parameter file")
       ("meanVarCoefFile", po::value<std::string>(&meanVarCoefFile), "path to negative binomial mean/variance coefficients file")
       //("sim", po::bool_switch(&simStart), "start at simulation params")
       ("disableBWstart", po::bool_switch(&disableBWstart)->default_value(false), "disable running baum welch to get initial starting points for BFGS")
-      ("disableEstTrParamsBFGS,e", po::bool_switch(&disableEstTrParamsBFGS)->default_value(false), "disable estimating transition params using BFGS")
+      ("disableEstLibBFGS", po::bool_switch(&fixLib)->default_value(false), "disable estimating library sizes using BFGS after baum welch")
+      ("disableEstTrParamsBFGS", po::bool_switch(&disableEstTrParamsBFGS)->default_value(false), "disable estimating transition params using BFGS")
       ("bwIters", po::value<int>(&numBWIters)->default_value(20), "number of baum welch iterations")
-      ("numLibStarts", po::value<int>(&numLibStarts)->default_value(3), "number of library starting points for baum welch (should be 1 (for [1]) or 3 (for [0.5, 1, 2]))")
+      ("numLibStarts", po::value<int>(&numLibStarts)->default_value(3), "number of library starting points for baum welch (should be 1 for [libStartVal], 2 for [1, 2], 3 for [1, 2, 4], or 4 for [1, 2, 4, 0.5]). These specify the multipliers for the lib estimate at the end of the first round of BW")
       ("libStartVal", po::value<double>(&libStartVal)->default_value(1.0), "if numLibStarts == 1, the value to start the library size scaling factor at")
       ("outputBase,o", po::value<std::string>(&outputBase)->required(), "path to output files");
 
