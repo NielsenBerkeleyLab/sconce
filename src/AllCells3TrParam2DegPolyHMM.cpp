@@ -731,7 +731,7 @@ void AllCells3TrParam2DegPolyHMM::saveAllViterbiDecodedCNA(std::string filename)
     (*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + "__" + hmmName + "__k" + std::to_string(this->MAX_PLOIDY) + ".viterbiDecoded");
   }
 
-  std::vector<gsl_vector*>* BFGSParamResults = this->getBFGSParamResults();
+  /*std::vector<gsl_vector*>* BFGSParamResults = this->getBFGSParamResults();
   if(BFGSParamResults != nullptr) {
     gsl_vector* bestParams = gsl_vector_alloc(this->getNumParamsToEst());
     gsl_vector_memcpy(bestParams, this->getParamsToEst());
@@ -754,6 +754,6 @@ void AllCells3TrParam2DegPolyHMM::saveAllViterbiDecodedCNA(std::string filename)
       (*this->hmmVec)[hmmIdx]->viterbiDecode();
     }
     gsl_vector_free(bestParams);
-  }
+  }*/
 }
 
