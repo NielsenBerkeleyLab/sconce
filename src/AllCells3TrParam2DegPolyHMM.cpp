@@ -726,9 +726,10 @@ void AllCells3TrParam2DegPolyHMM::viterbiDecodeAll() {
  */
 void AllCells3TrParam2DegPolyHMM::saveAllViterbiDecodedCNA(std::string filename) {
   for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
-    std::string hmmName = (*this->hmmNames)[hmmIdx];
+    /*std::string hmmName = (*this->hmmNames)[hmmIdx];
     boost::replace_all(hmmName, ",", "__");
-    //(*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + "__" + hmmName + "__k" + std::to_string(this->MAX_PLOIDY) + ".viterbiDecoded");
+    (*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + "__" + hmmName + "__k" + std::to_string(this->MAX_PLOIDY) + ".viterbiDecoded");*/
+    // for SCONCE, only indv cells, so don't need to parse HMM names
     (*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + ".viterbiDecoded");
   }
 
