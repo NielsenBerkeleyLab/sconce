@@ -55,12 +55,12 @@ AllInd3TrParam2DegPolyHMM* AllInd2Stages3TrParam2DegPolyHMM::getBFGSAllInd() {
 }
 void AllInd2Stages3TrParam2DegPolyHMM::print(FILE* stream) {
   if(this->bwAllInd != nullptr) {
-    fprintf(stream, "\nAllInd2Stages3TrParam2DegPolyHMM bwAllInd:\n");
+    fprintf(stream, "HMM after Baum Welch + least squares:\n");
     this->bwAllInd->print(stream);
   }
-  fprintf(stream, "\n\n################################################################################\n\n");
+  fprintf(stream, "################################################################################\n\n");
   if(this->bfgsAllInd != nullptr) {
-    fprintf(stream, "\nAllInd2Stages3TrParam2DegPolyHMM bfgsAllInd:\n");
+    fprintf(stream, "HMM after BFGS:\n");
     this->bfgsAllInd->print(stream);
   }
 }

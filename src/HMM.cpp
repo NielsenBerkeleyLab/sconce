@@ -1768,12 +1768,13 @@ void HMM::saveViterbiDecodedCNA(std::string filename) {
   DepthPair* currDepths = nullptr;
 
   // write header
-  outFile << "coord\tdiploid_mean\tdiploid_var";
+  outFile << "coord\tdiploid_mean\tdiploid_variance";
   if(firstDepthPair->chrToDiploidSimStateMap != nullptr && firstDepthPair->chrToDiploidSimStateMap->size() > 0) {
     outFile << "\tdiploid_simState";
   }
   for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-    outFile << "\ttumor" << cellIdx << "\tviterbiDecoded" << cellIdx << "_0-" << this->MAX_PLOIDY;
+    //outFile << "\ttumor" << cellIdx << "\tviterbiDecoded" << cellIdx << "_0-" << this->MAX_PLOIDY;
+    outFile << "\ttumor" << "\tploidy" << "_0-" << this->MAX_PLOIDY;
     if(firstDepthPair->chrToTumorSimStateMap != nullptr && firstDepthPair->chrToTumorSimStateMap->size() > 0) {
       outFile << "\tsimulated" << cellIdx << "_0-" << this->MAX_PLOIDY;
     }

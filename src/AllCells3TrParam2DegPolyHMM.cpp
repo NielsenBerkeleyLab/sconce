@@ -55,7 +55,7 @@ void AllCells3TrParam2DegPolyHMM::print(FILE* stream) {
     fprintf(stream, "\n");
   }
 
-  fprintf(stream, "\n\n");
+  /*fprintf(stream, "\n\n");
 
   // print paramsToEst
   fprintf(stream, "AllCells_TrParam2DegPolyHMM paramsToEst:\n");
@@ -66,7 +66,7 @@ void AllCells3TrParam2DegPolyHMM::print(FILE* stream) {
   printColVector(stream, this->fixedParams);
 
   // print total loglikelihood
-  fprintf(stream, "AllCells_TrParam2DegPolyHMM total loglikelihood: %.10f\n\n", this->runForwardAlg());
+  fprintf(stream, "AllCells_TrParam2DegPolyHMM total loglikelihood: %.10f\n\n", this->runForwardAlg());*/
 }
 
 std::vector<std::string>* AllCells3TrParam2DegPolyHMM::getSampleList() {
@@ -728,7 +728,8 @@ void AllCells3TrParam2DegPolyHMM::saveAllViterbiDecodedCNA(std::string filename)
   for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
     std::string hmmName = (*this->hmmNames)[hmmIdx];
     boost::replace_all(hmmName, ",", "__");
-    (*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + "__" + hmmName + "__k" + std::to_string(this->MAX_PLOIDY) + ".viterbiDecoded");
+    //(*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + "__" + hmmName + "__k" + std::to_string(this->MAX_PLOIDY) + ".viterbiDecoded");
+    (*this->hmmVec)[hmmIdx]->saveViterbiDecodedCNA(filename + ".viterbiDecoded");
   }
 
   /*std::vector<gsl_vector*>* BFGSParamResults = this->getBFGSParamResults();
