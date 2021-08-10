@@ -1186,8 +1186,10 @@ void HMM::runBaumWelch(int numBWIters) {
 
     // viterbi libs
     this->estLibScalingFactorsPosterior();
-    for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-      std::cerr << bwIters << "\tupdatedLib_" << cellIdx << "_vit\t" << this->getLibScalingFactor(cellIdx) << std::endl;
+    if(this->gradientDebug) {
+      for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
+        std::cerr << bwIters << "\tupdatedLib_" << cellIdx << "_vit\t" << this->getLibScalingFactor(cellIdx) << std::endl;
+      }
     }
 
     // eval how well this step worked

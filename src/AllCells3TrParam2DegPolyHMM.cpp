@@ -242,7 +242,9 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
       HMM* currHMM = (*this->hmmVec)[hmmIdx];
       std::cout << "STARTING BAUM WELCH for HMM " << hmmIdx << ", WITH LIBMULTIPLIER " << gsl_vector_get(libMultipliers, libIdx) << " (RUN " << libIdx + 1 << " OF " << libMultipliers->size << ")" << std::endl;
-      std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before each baum welch
+      if(this->gradientDebug) {
+        std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before each baum welch
+      }
       currHMM->runBaumWelch(numBWIters);
       currHMM->setUpBaumWelchLeastSquares();
 
@@ -283,7 +285,9 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     printf("BAUM WELCH TOTAL TIME (sec): %.10f\n", elapsedSec);
     printf("DONE WITH BAUM WELCH TOTAL (AllCells3TrParam2DegPolyHMM):\n\n");
     this->print(stdout);
-    std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before starting least squares bfgs
+    if(this->gradientDebug) {
+      std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before starting least squares bfgs
+    }
   } // end iterating over libMultipliers
 
     // figure out which libMultiplier result to send to the next step
@@ -393,11 +397,16 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     this->baumWelchParamResults->push_back(paramsToSave);
 
     this->print(stdout);
-    std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file after ending least squares bfgs
+    if(this->gradientDebug) {
+      std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file after ending least squares bfgs
+    }
 
   if(this->baumWelchParamResults->size() == 0) {
     std::cout << "WARNING: All baum welch + least squares runs failed. Using original params" << std::endl;
-    std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file after ending least squares bfgs
+    std::cerr << "WARNING: All baum welch + least squares runs failed. Using original params" << std::endl;
+    if(this->gradientDebug) {
+      std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file after ending least squares bfgs
+    }
     gsl_vector* origParamsToEstCopy = gsl_vector_alloc(origParamsToEst->size);
     gsl_vector_memcpy(origParamsToEstCopy, origParamsToEst);
     this->baumWelchParamResults->push_back(origParamsToEstCopy);
@@ -643,23 +652,25 @@ void AllCells3TrParam2DegPolyHMM::baumWelchLeastSquares_df(const gsl_vector* v, 
   }
 
   // BFGS printing TODO put into verbose flag
-  gsl_vector* probs = gsl_vector_alloc(v->size);
-  ((AllCells3TrParam2DegPolyHMM*) params)->baumWelchLeastSquares_convertParamToProb(probs, v);
-  fprintf(stderr, "%.20f \t", AllCells3TrParam2DegPolyHMM::baumWelchLeastSquares_f(v, params));
-  fprintf(stderr, "|\t");
-  for(unsigned int idx = 0; idx < probs->size; idx++) {
-    fprintf(stderr, "%.20f\t", gsl_vector_get(probs, idx));
+  if(((AllCells3TrParam2DegPolyHMM*)params)->gradientDebug) {
+    gsl_vector* probs = gsl_vector_alloc(v->size);
+    ((AllCells3TrParam2DegPolyHMM*) params)->baumWelchLeastSquares_convertParamToProb(probs, v);
+    fprintf(stderr, "%.20f \t", AllCells3TrParam2DegPolyHMM::baumWelchLeastSquares_f(v, params));
+    fprintf(stderr, "|\t");
+    for(unsigned int idx = 0; idx < probs->size; idx++) {
+      fprintf(stderr, "%.20f\t", gsl_vector_get(probs, idx));
+    }
+    fprintf(stderr, "|\t");
+    for(unsigned int idx = 0; idx < v->size; idx++) {
+      fprintf(stderr, "%.20f\t", gsl_vector_get(v, idx));
+    }
+    fprintf(stderr, "|\t");
+    for(unsigned int idx = 0; idx < df->size; idx++) {
+      fprintf(stderr, "%.20f\t", gsl_vector_get(df, idx));
+    }
+    fprintf(stderr, "\n");
+    gsl_vector_free(probs);
   }
-  fprintf(stderr, "|\t");
-  for(unsigned int idx = 0; idx < v->size; idx++) {
-    fprintf(stderr, "%.20f\t", gsl_vector_get(v, idx));
-  }
-  fprintf(stderr, "|\t");
-  for(unsigned int idx = 0; idx < df->size; idx++) {
-    fprintf(stderr, "%.20f\t", gsl_vector_get(df, idx));
-  }
-  fprintf(stderr, "\n");
-  gsl_vector_free(probs);
 }
 void AllCells3TrParam2DegPolyHMM::baumWelchLeastSquares_fdf(const gsl_vector* v, void* params, double* f, gsl_vector* df) {
   *f = baumWelchLeastSquares_f(v, params);

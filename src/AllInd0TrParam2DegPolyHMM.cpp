@@ -250,7 +250,9 @@ AllInd0TrParam2DegPolyHMM* AllInd0TrParam2DegPolyHMM::bfgs(gsl_vector* initGuess
   printf("STAGE 2 TOTAL TIME (sec): %.10f\n", elapsedSec);
   printf("DONE WITH STAGE 2 TOTAL (AllPairsFixLib0TrParam2DegPolyHMM):\n\n");
   this->print(stdout);
-  std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file
+  if(verbose) {
+    std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file
+  }
 
   return bestGuessOptim;
 }
