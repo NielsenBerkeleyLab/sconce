@@ -266,9 +266,7 @@ void Optimizable::bfgs(gsl_vector* initGuess, Optimizable* bestGuessOptim, bool 
     deltaLik = std::abs(currLik - oldLik);
 
     // print update message
-    if(verbose) {
-      printf("ON BFGS ITER %d, likelihood %.20f, time elapsed (sec) %.5f, iter change in loglikelihood %.5f, total change in loglikelihood %.5f\n", iter, -currLik, elapsedSec, deltaLik, initLikelihood - currLik);
-    }
+    printf("ON BFGS ITER %d, likelihood %.20f, time elapsed (sec) %.5f, iter change in loglikelihood %.5f, total change in loglikelihood %.5f\n", iter, -currLik, elapsedSec, deltaLik, initLikelihood - currLik);
 
     // if any error has occurred, break
     if(status) {
