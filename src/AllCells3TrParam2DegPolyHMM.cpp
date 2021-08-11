@@ -651,7 +651,7 @@ void AllCells3TrParam2DegPolyHMM::baumWelchLeastSquares_df(const gsl_vector* v, 
     gsl_vector_set(df, i, derivApprox);
   }
 
-  // BFGS printing TODO put into verbose flag
+  // BFGS printing if gradientDebug flag
   if(((AllCells3TrParam2DegPolyHMM*)params)->gradientDebug) {
     gsl_vector* probs = gsl_vector_alloc(v->size);
     ((AllCells3TrParam2DegPolyHMM*) params)->baumWelchLeastSquares_convertParamToProb(probs, v);
