@@ -8,11 +8,12 @@ SCONCE is written in C++11, and requires
 - g++ (tested on 7.5.0)
 - BOOST (tested on v1.65.1)
 - GSL (tested on v2.4)
+
 SCONCE was developed and tested on Ubuntu 18.04.
 
 ## Installation instructions
 1. Clone this repo: `git clone git@github.com:NielsenBerkeleyLab/sconce.git`.
-2. Run `make`. This will build intermediates into the build/ directory and create an executable named `sconce`.
+2. Run `make`. This will build intermediates into the `build/` directory and create an executable named `sconce`.
 
 
 ## Example test run
