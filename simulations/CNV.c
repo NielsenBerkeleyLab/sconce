@@ -876,7 +876,7 @@ double sim_coal_tree(double rootlength, double alpha)
   t=0; 
   for (i=numleafs; i>1; i--){
     t = slathud(alpha, (double)(i*(i-1))/2, t);
-    for (j=0; j<numleafs-1; j++)
+    for (j=0; j<i; j++)
       tree[list[j]].bl += t;
     pick=i*uniform();
     tree[list[pick]].parent=2*numleafs-i;
