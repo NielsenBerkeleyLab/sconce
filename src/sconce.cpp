@@ -63,12 +63,11 @@ int main(int argc, char** argv) {
   try {
     po::options_description cmdLineOps("Command line options");
     cmdLineOps.add_options()
-      ("help,h", "this help message")
-      ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
-      ("diploid,d", po::value<std::string>(&diploidFile)->required(), "path to diploid depth file")
-      ("tumor,s", po::value<std::string>(&tumorFilename), "path to single tumor depth file (ie to do fully independent runs)")
+      ("diploid,d", po::value<std::string>(&diploidFile)->required(), "path to averaged diploid read depth file")
+      ("tumor,s", po::value<std::string>(&tumorFilename), "path to single tumor read depth file")
       ("meanVarCoefFile,m", po::value<std::string>(&meanVarCoefFile), "path to negative binomial mean/variance coefficients file")
       ("outputBase,o", po::value<std::string>(&outputBase)->required(), "path to output files")
+      ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
       ("verbose,v", po::bool_switch(&verbose)->default_value(false), "enable debugging statements")
       ("saveViterbiDecoded", po::bool_switch(&saveVitDec)->default_value(false), "enable saving CNA calls in more verbose viterbiDecoded format")
       //("simParamFile,m", po::value<std::string>(&simParamFile), "path to simulation parameter file")
@@ -79,6 +78,7 @@ int main(int argc, char** argv) {
       ("bwIters", po::value<int>(&numBWIters)->default_value(20), "number of baum welch iterations")
       ("numLibStarts", po::value<int>(&numLibStarts)->default_value(3), "number of library starting points for baum welch (should be 1 for [libStartVal], 2 for [1, 2], 3 for [1, 2, 4], or 4 for [1, 2, 4, 0.5]). These specify the multipliers for the lib estimate at the end of the first round of BW")
       ("libStartVal", po::value<double>(&libStartVal)->default_value(1.0), "if numLibStarts == 1, the value to start the library size scaling factor at")
+      ("help,h", "this help message")
       ;
 
     //po::options_description simParamFileOps("Simulation Parameter configuration file options");
