@@ -1,0 +1,9 @@
+0 100 100 0 100
+0.0001  0.0005 10 10
+1.0
+0.0
+
+Description:
+line segment set D
+many insertions
+
