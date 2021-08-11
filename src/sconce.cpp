@@ -19,9 +19,6 @@ namespace po = boost::program_options;
  * copy number variants in single cell cancer sequencing data
  */
 int main(int argc, char** argv) {
-  // DEBUGGING: TURN OFF BUFFERING. from https://stackoverflow.com/a/1716621
-  setbuf(stdout, NULL);
-
   // parse command line options
   // run configurations
   int maxKploid = 0;
@@ -37,22 +34,11 @@ int main(int argc, char** argv) {
   bool saveVitDec = false;
 
   // optimization start points
-  //bool simStart = false;
   bool bwStart = true; // run baum welch first
   bool disableBWstart = false; // command line flag for disabling running baum welch first
   int numBWIters = 0;
   int numLibStarts = 0;
   double libStartVal = 0;
-
-  //// config file options if want to specify simulation params to compare likelihood
-  //// see https://github.com/mousebird/boost/blob/master/libs/program_options/example/multiple_sources.cpp
-  //std::string simParamFile;
-  //double alpha = 0;
-  //double beta = 0;
-  //double lambda = 0;
-  //double t = 0;
-  //double lib = 0;
-  //bool haveSimParams = false;
 
   // config file options if want to specify mean/var coefs for negative binomial. Otherwise, uses default from HMM::createMeanVarianceCoefVec()
   std::string meanVarCoefFile;
@@ -70,8 +56,6 @@ int main(int argc, char** argv) {
       ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
       ("verbose,v", po::bool_switch(&verbose)->default_value(false), "enable debugging statements")
       ("saveViterbiDecoded", po::bool_switch(&saveVitDec)->default_value(false), "enable saving CNA calls in more verbose viterbiDecoded format")
-      //("simParamFile,m", po::value<std::string>(&simParamFile), "path to simulation parameter file")
-      //("sim", po::bool_switch(&simStart), "start at simulation params")
       ("disableBWstart", po::bool_switch(&disableBWstart)->default_value(false), "disable running baum welch to get initial starting points for BFGS")
       ("disableEstLibBFGS", po::bool_switch(&fixLib)->default_value(false), "disable estimating library sizes using BFGS after baum welch")
       ("disableEstTrParamsBFGS", po::bool_switch(&disableEstTrParamsBFGS)->default_value(false), "disable estimating transition params using BFGS")
@@ -80,14 +64,6 @@ int main(int argc, char** argv) {
       ("libStartVal", po::value<double>(&libStartVal)->default_value(1.0), "if numLibStarts == 1, the value to start the library size scaling factor at")
       ("help,h", "this help message")
       ;
-
-    //po::options_description simParamFileOps("Simulation Parameter configuration file options");
-    //simParamFileOps.add_options()
-    //  ("alpha,a", po::value<double>(&alpha), "alpha (P(adj CNA))")
-    //  ("beta,b", po::value<double>(&beta)->required(), "beta (P(any CNA))")
-    //  ("lambda,L", po::value<double>(&lambda)->required(), "lambda (rate that events affect both bins)")
-    //  ("t", po::value<double>(&t)->required(), "t branch length")
-    //  ("lib", po::value<double>(&lib)->required(), "lib (cell library size scaling factor)");
 
     po::options_description meanVarCoefFileOps("Negative Binomial Mean and Variance Coefficient configuration file options");
     meanVarCoefFileOps.add_options()
@@ -100,22 +76,11 @@ int main(int argc, char** argv) {
 
     if(vm.count("help") || argc == 1) {
       std::cout << cmdLineOps << std::endl;;
-      //std::cout << simParamFileOps << std::endl;
       std::cout << meanVarCoefFileOps << std::endl;;
       return 0;
     }
     po::notify(vm); // deal with any command line errors
 
-    //if(vm.count("simParamFile")) {
-    //  std::ifstream cfg(simParamFile.c_str());
-    //  if(!cfg) {
-    //    std::cerr << "Error: cannot open " << simParamFile << std::endl;
-    //    exit(EXIT_FAILURE);
-    //  }
-    //  po::store(po::parse_config_file(cfg, simParamFileOps, true), vm); // true is to allow unknown options (ie for alpha to be in the masterParams file without messing up param parsing; see https://stackoverflow.com/a/31922646
-    //  haveSimParams = true;
-    //  cfg.close();
-    //}
     po::notify(vm);
 
     if(vm.count("meanVarCoefFile")) {
@@ -183,30 +148,6 @@ int main(int argc, char** argv) {
     if(meanVarianceCoefVec != nullptr) {
       bwHMM->setAllMeanVarianceFn(meanVarianceCoefVec);
     }
-    //if(haveSimParams) {
-    //  gsl_vector* simParamsForBw = gsl_vector_alloc(bwHMM->getNumParamsToEst());
-    //  gsl_vector* fixedParamsForBw = gsl_vector_alloc(bwHMM->getNumFixedParams());
-    //  int simParamsIdx = 0;
-
-    //  // libs
-    //  for(; simParamsIdx < numCells; simParamsIdx++) {
-    //    gsl_vector_set(simParamsForBw, simParamsIdx, lib);
-    //  }
-
-    //  // beta/lambda
-    //  gsl_vector_set(simParamsForBw, simParamsIdx, beta);
-    //  simParamsIdx++;
-    //  gsl_vector_set(simParamsForBw, simParamsIdx, lambda);
-    //  simParamsIdx++;
-
-    //  // branch lengths
-    //  for(int i = 0; i < numCells; i++) {
-    //    gsl_vector_set(simParamsForBw, simParamsIdx + i, t);
-    //  }
-    //  gsl_vector_set(fixedParamsForBw, fixedParamsForBw->size - 1, alpha);
-    //  bwHMM->setSimParamsToEst(simParamsForBw);
-    //  bwHMM->setSimFixedParams(fixedParamsForBw);
-    //}
     allIndHMM->setBaumWelchInitGuess(bwInitGuess, numBWIters, numLibStarts, libStartVal);
 
     std::cout << "######## DONE WITH BAUM WELCH INITIALIZATION ########" << std::endl;
@@ -362,9 +303,6 @@ int main(int argc, char** argv) {
   double elapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0;
   printf("TOTAL TIME ELAPSED (sec): %.5f\n", elapsedSec);
 
-  // clean up
-  // TODO
-  
   return 0;
 }
 
