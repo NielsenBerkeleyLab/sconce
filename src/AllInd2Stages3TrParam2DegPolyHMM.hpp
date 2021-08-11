@@ -70,6 +70,7 @@ class AllInd2Stages3TrParam2DegPolyHMM {
     // methods to save results
     void viterbiDecode();
     void saveViterbiDecodedCNA(std::string filename);
+    void saveCNAToBed(std::string filename);
 
 };
 

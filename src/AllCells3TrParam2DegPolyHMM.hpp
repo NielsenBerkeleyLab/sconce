@@ -2,7 +2,7 @@
 #define ALLCELLS3TRPARAM2DEGPOLYHMM_HPP
 
 #include <boost/random.hpp>
-#include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <vector>
 #include <unordered_map>
@@ -101,6 +101,8 @@ class AllCells3TrParam2DegPolyHMM : public Optimizable {
     // methods to save results
     void viterbiDecodeAll();
     void saveAllViterbiDecodedCNA(std::string filename);
+    void saveAllCNAToBed(std::string filename);
+
 };
 
 #endif

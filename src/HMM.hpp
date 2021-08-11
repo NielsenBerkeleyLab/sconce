@@ -114,7 +114,6 @@ class HMM : public Optimizable {
 
     // accessors and mutators
     std::vector<DepthPair*>* getDepths();
-    void saveViterbiDecodedCNA(std::string filename);
     void setStates(std::vector<std::string>* states);
     std::vector<std::string>* getStates() const;
     void setAlphabet(std::set<int>* alphabet);
@@ -176,6 +175,8 @@ class HMM : public Optimizable {
     void calcMargLikelihoods();
     double findSteadyStateDist(gsl_vector* steadyStateVec) const;
     virtual void print(FILE* stream) override;
+    void saveViterbiDecodedCNA(std::string filename);
+    void saveCNAToBed(std::string filename, int cellIdx);
     virtual void saveHMMToFile(std::string filename); // internally calls print
     virtual double checkStateValidity(double epsilon = 1e-8) const override; // should check if transition matrices are ok
     virtual double checkStateValidity(gsl_matrix* mat, double epsilon = 1e-8) const; // should check if passed matrix is ok

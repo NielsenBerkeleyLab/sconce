@@ -198,6 +198,32 @@ HMM::~HMM() {
 }
 
 /*
+ * helper method to get a state idx according to prob p in transition matrix
+ * from fromStateIdx
+ */
+int HMM::getRandStateIdx(double p, int fromStateIdx) const {
+  gsl_vector_view fromRow = gsl_matrix_row(this->transition, fromStateIdx);
+  //std::cout << "\nfrom " << fromStateIdx << std::endl;
+  return getRandStateIdx(p, &fromRow.vector);
+}
+
+/*
+ * helper method to get a state idx according to prob p in probVec
+ */
+int HMM::getRandStateIdx(double p, gsl_vector* probVec) const {
+  double cummSum = 0;
+  int toState = 0;
+  for(unsigned int i = 0; i < this->states->size(); i++) {
+    if(cummSum > p) {
+      break;
+    }
+    cummSum += gsl_vector_get(probVec, i);
+    toState = i;
+  }
+  return toState;
+}
+
+/*
  ********
  * accessors and mutators
  ********
@@ -1652,6 +1678,108 @@ void HMM::print(FILE* stream) {
 }
 
 /*
+ * helper function to write the table needed to plot the viterbi decoded CNA path for each tumor cell
+ * coord | diploid_mean | diploid_var | tumor0 | viterbiDecoded0_0-MAX_PLOIDY | tumor1 | viterbiDecoded1_0-MAX_PLOIDY |...
+ */
+void HMM::saveViterbiDecodedCNA(std::string filename) {
+  std::ofstream outFile(filename);
+  std::string sep = "\t";
+  std::string currChr;
+  std::vector<std::string>* chrVec = this->getChrVec();
+  DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
+  DepthPair* currDepths = nullptr;
+
+  // write header
+  outFile << "coord\tdiploid_mean\tdiploid_variance";
+  if(firstDepthPair->chrToDiploidSimStateMap != nullptr && firstDepthPair->chrToDiploidSimStateMap->size() > 0) {
+    outFile << "\tdiploid_simState";
+  }
+  for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
+    //outFile << "\ttumor" << cellIdx << "\tviterbiDecoded" << cellIdx << "_0-" << this->MAX_PLOIDY;
+    outFile << "\ttumor" << "\tploidy" << "_0-" << this->MAX_PLOIDY;
+    if(firstDepthPair->chrToTumorSimStateMap != nullptr && firstDepthPair->chrToTumorSimStateMap->size() > 0) {
+      outFile << "\tsimulated" << cellIdx << "_0-" << this->MAX_PLOIDY;
+    }
+  }
+  outFile << std::endl;
+
+  // for each chr
+  for(unsigned int i = 0; i < chrVec->size(); i++) {
+    currChr = (*chrVec)[i];
+
+    // for each window in currChr
+    for(unsigned int regionIdx = 0; regionIdx < (*firstDepthPair->regions)[currChr]->size(); regionIdx++) {
+      // coord
+      outFile << (*(*firstDepthPair->regions)[currChr])[regionIdx] << sep;
+
+      // diploid mean
+      outFile << (*(*firstDepthPair->chrToDiploidDepthMap)[currChr])[regionIdx] << sep;
+
+      // diploid var
+      outFile << (*(*firstDepthPair->chrToDiploidVarMap)[currChr])[regionIdx];
+
+      // diploid simulated state (if set)
+      if(firstDepthPair->chrToDiploidSimStateMap->size() > 0) {
+        outFile << sep << (*(*firstDepthPair->chrToDiploidSimStateMap)[currChr])[regionIdx];
+      }
+
+      // for each tumor cell
+      for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
+        currDepths = (*this->depths)[cellIdx];
+        // tumor depth
+        outFile << sep << (*(*currDepths->chrToTumorDepthMap)[currChr])[regionIdx];
+
+        // viterbi decoded CNA
+        outFile << sep << (*(*currDepths->chrToViterbiPathMap)[currChr])[regionIdx];
+
+        // tumor simulated state (if set)
+        if(currDepths->chrToTumorSimStateMap->size() > 0) {
+          outFile << sep << (*(*currDepths->chrToTumorSimStateMap)[currChr])[regionIdx];
+        }
+      }
+
+      // new line
+      outFile << std::endl;
+    }
+  }
+  outFile.close();
+}
+
+/*
+ * helper function to save CNA to a bed file for the passed cell
+ * cols are tab separated:
+ * chr | start (includsive, 0 indexed) | end (exclusive) | ploidy
+ */
+void HMM::saveCNAToBed(std::string filename, int cellIdx) {
+  std::ofstream outFile(filename);
+  std::string sep = "\t";
+  std::string currChr;
+  std::vector<std::string>* chrVec = this->getChrVec();
+  DepthPair* currDepths = (*this->depths)[cellIdx];
+
+  // for each chr
+  for(unsigned int i = 0; i < chrVec->size(); i++) {
+    currChr = (*chrVec)[i];
+
+    // for each window in currChr
+    for(unsigned int regionIdx = 0; regionIdx < (*currDepths->regions)[currChr]->size(); regionIdx++) {
+      // transform stored coord "chr:start-end" ==> "chr\tstart\tend"
+      std::string coord = (*(*currDepths->regions)[currChr])[regionIdx];
+      boost::replace_all(coord, ":", sep);
+      boost::replace_all(coord, "-", sep);
+      outFile << coord << sep;
+
+      // viterbi decoded CNA
+      outFile << sep << (*(*currDepths->chrToViterbiPathMap)[currChr])[regionIdx];
+
+      // new line
+      outFile << std::endl;
+    }
+  }
+  outFile.close();
+}
+
+/*
  * helper function to save an HMM to a file, internally calls print
  */
 void HMM::saveHMMToFile(std::string filename) {
@@ -1755,97 +1883,4 @@ double HMM::checkForTransientStates() {
   return status;
 }
 
-/*
- * helper function to write the table needed to plot the viterbi decoded CNA path for each tumor cell
- * coord | diploid_mean | diploid_var | tumor0 | viterbiDecoded0_0-MAX_PLOIDY | tumor1 | viterbiDecoded1_0-MAX_PLOIDY |...
- */
-void HMM::saveViterbiDecodedCNA(std::string filename) {
-  std::ofstream outFile(filename);
-  std::string sep = "\t";
-  std::string currChr;
-  std::vector<std::string>* chrVec = this->getChrVec();
-  DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
-  DepthPair* currDepths = nullptr;
-
-  // write header
-  outFile << "coord\tdiploid_mean\tdiploid_variance";
-  if(firstDepthPair->chrToDiploidSimStateMap != nullptr && firstDepthPair->chrToDiploidSimStateMap->size() > 0) {
-    outFile << "\tdiploid_simState";
-  }
-  for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-    //outFile << "\ttumor" << cellIdx << "\tviterbiDecoded" << cellIdx << "_0-" << this->MAX_PLOIDY;
-    outFile << "\ttumor" << "\tploidy" << "_0-" << this->MAX_PLOIDY;
-    if(firstDepthPair->chrToTumorSimStateMap != nullptr && firstDepthPair->chrToTumorSimStateMap->size() > 0) {
-      outFile << "\tsimulated" << cellIdx << "_0-" << this->MAX_PLOIDY;
-    }
-  }
-  outFile << std::endl;
-
-  // for each chr
-  for(unsigned int i = 0; i < chrVec->size(); i++) {
-    currChr = (*chrVec)[i];
-
-    // for each window in currChr
-    for(unsigned int regionIdx = 0; regionIdx < (*firstDepthPair->regions)[currChr]->size(); regionIdx++) {
-      // coord
-      outFile << (*(*firstDepthPair->regions)[currChr])[regionIdx] << sep;
-
-      // diploid mean
-      outFile << (*(*firstDepthPair->chrToDiploidDepthMap)[currChr])[regionIdx] << sep;
-
-      // diploid var
-      outFile << (*(*firstDepthPair->chrToDiploidVarMap)[currChr])[regionIdx];
-
-      // diploid simulated state (if set)
-      if(firstDepthPair->chrToDiploidSimStateMap->size() > 0) {
-        outFile << sep << (*(*firstDepthPair->chrToDiploidSimStateMap)[currChr])[regionIdx];
-      }
-
-      // for each tumor cell
-      for(int cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
-        currDepths = (*this->depths)[cellIdx];
-        // tumor depth
-        outFile << sep << (*(*currDepths->chrToTumorDepthMap)[currChr])[regionIdx];
-
-        // viterbi decoded CNA
-        outFile << sep << (*(*currDepths->chrToViterbiPathMap)[currChr])[regionIdx];
-
-        // tumor simulated state (if set)
-        if(currDepths->chrToTumorSimStateMap->size() > 0) {
-          outFile << sep << (*(*currDepths->chrToTumorSimStateMap)[currChr])[regionIdx];
-        }
-      }
-
-      // new line
-      outFile << std::endl;
-    }
-  }
-  outFile.close();
-}
-
-/*
- * helper method to get a state idx according to prob p in transition matrix
- * from fromStateIdx
- */
-int HMM::getRandStateIdx(double p, int fromStateIdx) const {
-  gsl_vector_view fromRow = gsl_matrix_row(this->transition, fromStateIdx);
-  //std::cout << "\nfrom " << fromStateIdx << std::endl;
-  return getRandStateIdx(p, &fromRow.vector);
-}
-
-/*
- * helper method to get a state idx according to prob p in probVec
- */
-int HMM::getRandStateIdx(double p, gsl_vector* probVec) const {
-  double cummSum = 0;
-  int toState = 0;
-  for(unsigned int i = 0; i < this->states->size(); i++) {
-    if(cummSum > p) {
-      break;
-    }
-    cummSum += gsl_vector_get(probVec, i);
-    toState = i;
-  }
-  return toState;
-}
 

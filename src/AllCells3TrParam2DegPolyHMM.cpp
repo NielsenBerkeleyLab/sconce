@@ -759,3 +759,22 @@ void AllCells3TrParam2DegPolyHMM::saveAllViterbiDecodedCNA(std::string filename)
   }*/
 }
 
+/*
+ * function to save all CNAs to bed files
+ */
+void AllCells3TrParam2DegPolyHMM::saveAllCNAToBed(std::string filename) {
+  // for each HMM, save each cell to a bed file
+  for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
+    HMM* currHMM = (*this->hmmVec)[hmmIdx];
+    /*std::string hmmName = (*this->hmmNames)[hmmIdx];
+    std::vector<std::string> cellNames;
+    boost::split(cellNames, hmmName, boost::is_any_of(","));
+
+    for(int cellIdx = 0; cellIdx < currHMM->NUM_CELLS && cellIdx < (int) cellNames.size(); cellIdx++) {
+      currHMM->saveCNAToBed(filename + "__" + cellNames[cellIdx] + ".bed", cellIdx);
+    }*/
+    // for SCONCE, only indv cells, so don't need to parse HMM names
+    currHMM->saveCNAToBed(filename + ".bed", 0);
+  }
+}
+

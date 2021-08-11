@@ -177,4 +177,7 @@ void AllInd2Stages3TrParam2DegPolyHMM::viterbiDecode() {
 void AllInd2Stages3TrParam2DegPolyHMM::saveViterbiDecodedCNA(std::string filename) {
   this->bfgsAllInd->saveAllViterbiDecodedCNA(filename);
 }
+void AllInd2Stages3TrParam2DegPolyHMM::saveCNAToBed(std::string filename) {
+  this->bfgsAllInd->saveAllCNAToBed(filename);
+}
 

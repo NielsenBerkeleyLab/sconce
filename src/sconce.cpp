@@ -23,14 +23,18 @@ int main(int argc, char** argv) {
   setbuf(stdout, NULL);
 
   // parse command line options
+  // run configurations
   int maxKploid = 0;
   std::string diploidFile;
   std::string tumorFilename;
-  std::string outputBase;
-  bool verbose = false;
   bool fixLib = false; // should bfgs estimate libs, or should those be fixed from BW?
   bool estTrParamsBFGS = true; // should transition params be estimated with BFGS?
   bool disableEstTrParamsBFGS = false; // command line flag for disabling estimating transition params using BFGS
+
+  // output options
+  std::string outputBase;
+  bool verbose = false;
+  bool saveVitDec = false;
 
   // optimization start points
   //bool simStart = false;
@@ -60,12 +64,14 @@ int main(int argc, char** argv) {
     po::options_description cmdLineOps("Command line options");
     cmdLineOps.add_options()
       ("help,h", "this help message")
-      ("diploid,d", po::value<std::string>(&diploidFile)->required(), "path to diploid depth file")
-      ("tumorFilename,s", po::value<std::string>(&tumorFilename), "path to single tumor depth file (ie to do fully independent runs)")
       ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
+      ("diploid,d", po::value<std::string>(&diploidFile)->required(), "path to diploid depth file")
+      ("tumor,s", po::value<std::string>(&tumorFilename), "path to single tumor depth file (ie to do fully independent runs)")
+      ("meanVarCoefFile,m", po::value<std::string>(&meanVarCoefFile), "path to negative binomial mean/variance coefficients file")
+      ("outputBase,o", po::value<std::string>(&outputBase)->required(), "path to output files")
       ("verbose,v", po::bool_switch(&verbose)->default_value(false), "enable debugging statements")
+      ("saveViterbiDecoded", po::bool_switch(&saveVitDec)->default_value(false), "enable saving CNA calls in more verbose viterbiDecoded format")
       //("simParamFile,m", po::value<std::string>(&simParamFile), "path to simulation parameter file")
-      ("meanVarCoefFile", po::value<std::string>(&meanVarCoefFile), "path to negative binomial mean/variance coefficients file")
       //("sim", po::bool_switch(&simStart), "start at simulation params")
       ("disableBWstart", po::bool_switch(&disableBWstart)->default_value(false), "disable running baum welch to get initial starting points for BFGS")
       ("disableEstLibBFGS", po::bool_switch(&fixLib)->default_value(false), "disable estimating library sizes using BFGS after baum welch")
@@ -73,7 +79,7 @@ int main(int argc, char** argv) {
       ("bwIters", po::value<int>(&numBWIters)->default_value(20), "number of baum welch iterations")
       ("numLibStarts", po::value<int>(&numLibStarts)->default_value(3), "number of library starting points for baum welch (should be 1 for [libStartVal], 2 for [1, 2], 3 for [1, 2, 4], or 4 for [1, 2, 4, 0.5]). These specify the multipliers for the lib estimate at the end of the first round of BW")
       ("libStartVal", po::value<double>(&libStartVal)->default_value(1.0), "if numLibStarts == 1, the value to start the library size scaling factor at")
-      ("outputBase,o", po::value<std::string>(&outputBase)->required(), "path to output files");
+      ;
 
     //po::options_description simParamFileOps("Simulation Parameter configuration file options");
     //simParamFileOps.add_options()
@@ -332,7 +338,10 @@ int main(int argc, char** argv) {
 
   std::chrono::steady_clock::time_point decodeStart = std::chrono::steady_clock::now();
   allIndHMM->viterbiDecode();
-  allIndHMM->saveViterbiDecodedCNA(outputBase);
+  if(saveVitDec) {
+    allIndHMM->saveViterbiDecodedCNA(outputBase);
+  }
+  allIndHMM->saveCNAToBed(outputBase);
   std::chrono::steady_clock::time_point decodeEnd = std::chrono::steady_clock::now();
   double decodeElapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(decodeEnd - decodeStart).count() / 1000000.0;
   printf("TOTAL DECODING TIME ELAPSED (sec): %.5f\n", decodeElapsedSec);
