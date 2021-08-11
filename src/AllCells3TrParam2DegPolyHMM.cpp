@@ -412,12 +412,6 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     this->baumWelchParamResults->push_back(origParamsToEstCopy);
     this->setParamsToEst(origParamsToEstCopy);
   }
-  std::cout << "The baum welch parameter sets are:" << std::endl;
-  for(unsigned int i = 0; i < this->baumWelchParamResults->size(); i++) {
-    if((*this->baumWelchParamResults)[i] != nullptr) {
-      printColVector((*this->baumWelchParamResults)[i]);
-    }
-  }
   gsl_vector_memcpy(initGuess, (*this->baumWelchParamResults)[0]); // save first set of params into initGuess
 
   // clean up

@@ -209,9 +209,7 @@ int main(int argc, char** argv) {
     //}
     allIndHMM->setBaumWelchInitGuess(bwInitGuess, numBWIters, numLibStarts, libStartVal);
 
-    std::cout << "######## DONE WITH BAUM WELCH INITIALIZATION. BWINITGUESS IS ########" << std::endl;
-    
-    printColVector(bwInitGuess);
+    std::cout << "######## DONE WITH BAUM WELCH INITIALIZATION ########" << std::endl;
     allIndHMM->print(stdout);
   }
   // ##### end baum welch #####
@@ -287,15 +285,9 @@ int main(int argc, char** argv) {
     }
 
   }
-  if(fixedParams != nullptr) {
-    std::cout << "fixedParams:" << std::endl;
-    printColVector(fixedParams);
-  }
   allIndHMM->setUpAllIndBFGS(fixLib, estTrParamsBFGS, fixedParams);
   AllInd3TrParam2DegPolyHMM* bfgsAllInd = allIndHMM->getBFGSAllInd();
   if(paramsToEstStartFromBW != nullptr) {
-    std::cout << "paramsToEstStartFromBW:" << std::endl;
-    printColVector(paramsToEstStartFromBW);
     bool bwParamAdjusted = false;
     for(unsigned int paramIdx = 0; paramIdx < paramsToEstStartFromBW->size; paramIdx++) {
       double bwParamValue = gsl_vector_get(paramsToEstStartFromBW, paramIdx);
@@ -324,15 +316,15 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::cout << "######## STARTING INDCELLS STAGE 2 BFGS ########" << std::endl;
+  std::cout << "######## STARTING BFGS ########" << std::endl;
   bfgsAllInd->print(stdout);
   bfgsInitLl = bfgsAllInd->getLogLikelihood();
   gsl_vector* tmpInitGuess = gsl_vector_alloc(bfgsAllInd->getNumParamsToEst());
   gsl_vector_memcpy(tmpInitGuess, bfgsAllInd->getParamsToEst());
 
-  // ##### run bfgs on indCells stage 2 #####
+  // ##### run bfgs #####
   allIndHMM->callBFGSNTimes(tmpInitGuess, 1, verbose);
-  std::cout << "######## DONE WITH INDCELLS STAGE 2 BFGS ########" << std::endl;
+  std::cout << "######## DONE WITH BFGS ########" << std::endl;
   bfgsAllInd->print(stdout);
   optimLL = allIndHMM->getBFGSAllIndLogLikelihood();
 
@@ -345,7 +337,7 @@ int main(int argc, char** argv) {
   std::chrono::steady_clock::time_point decodeEnd = std::chrono::steady_clock::now();
   double decodeElapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(decodeEnd - decodeStart).count() / 1000000.0;
   printf("TOTAL DECODING TIME ELAPSED (sec): %.5f\n", decodeElapsedSec);
-  printf("AVERAGE DECODING TIME ELAPSED (sec): %.5f\n", decodeElapsedSec / (double) numCells);
+  printf("AVERAGE DECODING TIME ELAPSED (sec): %.5f\n\n", decodeElapsedSec / (double) numCells);
 
   // #### save the optimized HMM ####
   std::cout << "######## SAVING HMM ########" << std::endl;

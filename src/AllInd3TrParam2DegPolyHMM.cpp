@@ -44,7 +44,6 @@ void AllInd3TrParam2DegPolyHMM::makeHMMs() {
 }
 
 void AllInd3TrParam2DegPolyHMM::makeHMMs(gsl_vector* meanVarianceCoefVec, gsl_vector* transitionParams) {
-  std::cout << "in AllInd3TrParam2DegPolyHMM::makeHMMs" << std::endl;
   std::vector<DepthPair*>* currDepths = nullptr;
   gsl_vector* currMeanVarCoefVec = nullptr; // make them all have their own copies of this vector
   for(unsigned int hmmIdx = 0; hmmIdx < this->depthsVec->size(); hmmIdx++) {
