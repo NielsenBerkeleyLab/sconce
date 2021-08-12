@@ -78,6 +78,20 @@ SCONCE will create the following files automatically:
 SCONCE also prints log messages to stdout and error messages to stderr.
 If the `--verbose` flag is used, debugging statements will be printed to stderr.
 
+Genome traces can be plotted using the included [scripts/plotGenomeTrace.R](scripts/plotGenomeTrace.R) script. The arguments for this script are:
+- Arg 1: /path/to/healthy/average/bed/file
+- Arg 2: /path/to/observed/tumor/read/depths/bed/file
+- Arg 3: /path/to/sconce/output/bed/file
+- Arg 4: /path/to/output/plot
+- Arg 5: quoted text for the plot title (ex sample name)
+- Arg 6: [optional] /path/to/ground/truth/ploidy/bed/file (ie for simulations)
+
+Using the test files from before:
+```
+Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/ref_output_k5.bed test/ref_plot_k5.png "Reference Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
+```
+[The output plot](test/ref_plot_k5.png) is included for reference.
+
 
 ## Simulations
 To compile and run the simulation program, see [simulations/README.md](simulations/README.md).
