@@ -2,6 +2,7 @@
 #include <stdlib.h> 
 #include <string.h>
 #include <math.h> /*remember to use -lm flag when compiling*/
+#include <time.h>
 # include "ranlib.h"
 
 //-------------DATA STRUCTURES AND GLOBALS-------------
@@ -1211,9 +1212,14 @@ int main(int argc, char *argv[])
   struct param simparam;
   globalcounter=0;
 
-  if (argc<3) {printf("Specify name of two infiles: infile paramfile\n"); exit(-1);}
+  if (argc<3) {printf("Specify name of two infiles: infile paramfile [seed]\n"); exit(-1);}
   sprintf(inname, "%s", argv[1]);
   sprintf(paramname, "%s", argv[2]);
+  if(argc == 4) {
+    SetSeed(atoi(argv[3]));
+  } else {
+    SetSeed(time(NULL));
+  }
   if (NULL==(infile=fopen(inname,"r")))
   {
     puts ("Cannot open infile with!");
