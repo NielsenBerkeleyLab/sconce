@@ -9,6 +9,13 @@ SCONCE is written in C++11, and requires
 - BOOST (tested on v1.65.1)
 - GSL (tested on v2.4)
 
+Additional [R scripts](scripts/) require
+- R (tested on v3.6.3)
+- ggplot2 (tested on v3.2.1)
+- reshape2 (tested on v1.4.3)
+- cowplot (tested on v1.1.1)
+- scales (tested on v1.1.0)
+
 SCONCE was developed and tested on Ubuntu 18.04.
 
 ## Installation instructions
