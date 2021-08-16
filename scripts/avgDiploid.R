@@ -6,7 +6,7 @@
 # Arg 2: output filename (ex diploid/diploid_avg_cov_unif_200kb.bed)
 #
 # sample usage:
-#   Rscript scripts/fitMeanVarRlnshp.R test/diploidFileList test/test_healthy_avg.bed
+#   Rscript scripts/avgDiploid.R test/diploidFileList test/test_healthy_avg.bed
 
 args <- commandArgs(trailingOnly=TRUE)
 
