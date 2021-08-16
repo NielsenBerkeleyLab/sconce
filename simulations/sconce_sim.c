@@ -1202,7 +1202,7 @@ void checkratematrix(double **ratematrix, int max)
   */
 
 
-//compile using gcc CNV.c ranlib.c rnglib.c -o CNV -lm
+//compile using gcc sconce_sim.c ranlib.c rnglib.c -o sconce_sit -lm
 int main(int argc, char *argv[])
 {
 
