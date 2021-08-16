@@ -4,6 +4,9 @@
 
 # Arg 1: file of list of paths to diploid files
 # Arg 2: output file 
+#
+# sample usage:
+#   Rscript scripts/fitMeanVarRlnshp.R test/diploidFileList test/test.meanVar
 
 args <- commandArgs(trailingOnly=TRUE)
 fileList <- read.table(args[1], stringsAsFactors=F)$V1
