@@ -5,7 +5,7 @@ This file describes the simulation program for SCONCE.
 To compile the program, run `make`. All dependencies are included here.
 
 ## Generating simulated datasets
-To run it, run `./sconce_sim <infile> <paramfile>`. This will create the following files in the current working directory:
+To run it, run `./sconce_sim <infile> <paramfile> [optional random seed]`. This will create the following files in the current working directory:
 - `simu_cancer_cell_*` (observed read depth for cancer cells)
 - `simu_healthy_cell_*` (observed read depth for healthy cells)
 - `true_cancer_cell_*` (true ploidy for cancer cells)
@@ -46,3 +46,6 @@ All published simulation sets use the same `<paramfile>` format. The `<paramfile
 
 ## Example parameter files
 Parameter files for the SCONCE paper dataset are included in the inputFiles directory for reproducibility. All of the simulation sets use the same paramfile.txt. Sets A-D are under the line segment model, and E-J are under the binned model.
+
+The included test files are from parameter set A, with seed 0. The tumor cell is cell 0.
+
