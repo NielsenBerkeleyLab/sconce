@@ -24,17 +24,10 @@ SCONCE was developed and tested on Ubuntu 18.04.
 git clone git@github.com:NielsenBerkeleyLab/sconce.git
 ```
 2. Run `make`. This will build intermediates into the `build/` directory and create an executable named `sconce`.
+3. [Optional] Run `sconce` on the test files as below.
 
 
-## Example test run
-To ensure `sconce` was built correctly, we include some test files. Run the following:
-```
-time ./sconce --diploid test/test_healthy_avg.bed --tumor test/test_cancer_cell.bed --meanVarCoefFile test/test.meanVar --outputBase test/output_k5 --maxKploid 5 > test/output_k5.log 2> test/output_k5.err
-```
-Your output (with the exception of timing information) should match the provided `test/ref_output_k5*` files.
-
-
-## Brief parameter descriptions
+## Brief parameter descriptions for SCONCE
 - `--diploid` This file should be the averaged read depth across all diploid cells. It can be generated using [scripts/avgDiploid.R](scripts/avgDiploid.R).
 - `--tumor` This file should be the per window read depth of a tumor cell to analyze.
 - `--meanVarCoefFile` This file should define the coefficients for the relationship between the mean and variance of the negative binomial distribution used for emission probabilities. It should be generated using [scripts/fitMeanVarRlnshp.R](scripts/fitMeanVarRlnshp.R).
@@ -43,20 +36,6 @@ Your output (with the exception of timing information) should match the provided
 
 
 ## Input files
-Averaged diploid read depth files should be tab separated, with columns `<chr>\t<start>\t<end>\t<meanReadDepth>\t<varianceOfReadDepth>`. They should be generated using [scripts/avgDiploid.R](scripts/avgDiploid.R). For example:
-```
-chr1	0	250000	325.87	2014.1131
-chr1	250000	500000	313.32	2017.6376
-chr1	500000	750000	314.41	2165.7219
-chr1	750000	1000000	330.23	1751.4371
-chr1	1000000	1250000	313.69	2156.5539
-chr1	1250000	1500000	321.75	2743.3475
-chr1	1500000	1750000	327.08	2228.4736
-chr1	1750000	2000000	318.79	2606.3459
-chr1	2000000	2250000	326.76	2733.8824
-chr1	2250000	2500000	319.27	3082.6371
-```
-
 Tumor read depth files should be tab separated, with columns `<chr>\t<start>\t<end>\t<readDepth>`. See [simulations/README.md](simulations/README.md) for how to generate simulations with this format. For real data, a tool like [bedtools coverage](https://bedtools.readthedocs.io/en/latest/content/tools/coverage.html) can be used to create this file from a bam file. For example:
 ```
 chr1	0	250000	699
@@ -71,12 +50,42 @@ chr1	2000000	2250000	736
 chr1	2250000	2500000	634
 ```
 
+Averaged diploid read depth files should be tab separated, with columns `<chr>\t<start>\t<end>\t<meanReadDepth>\t<varianceOfReadDepth>`. They should be generated using [scripts/avgDiploid.R](scripts/avgDiploid.R), given a file providing a list of paths to the observed diploid read depths. For example:
+```
+Rscript scripts/avgDiploid.R test/diploidFileList test/test_healthy_avg.bed
+```
+produces the following output:
+```
+$ head test/test_healthy_avg.bed2
+chr1    0       250000  325.87  2034.45767676768
+chr1    250000  500000  313.32  2038.01777777778
+chr1    500000  750000  314.41  2187.59787878788
+chr1    750000  1000000 330.23  1769.12838383838
+chr1    1000000 1250000 313.69  2178.33727272727
+chr1    1250000 1500000 321.75  2771.05808080808
+chr1    1500000 1750000 327.08  2250.98343434343
+chr1    1750000 2000000 318.79  2632.67262626263
+chr1    2000000 2250000 326.76  2761.49737373737
+chr1    2250000 2500000 319.27  3113.77484848485
+```
+
 Mean and variance coefficient files should have one parameter and value pair per line. They should be generated using [scripts/fitMeanVarRlnshp.R](scripts/fitMeanVarRlnshp.R). For example:
 ```
-intercept=10.80433928393
-slope=1.17232224213
-poly2=0.01918299582
+Rscript scripts/fitMeanVarRlnshp.R test/diploidFileList test/test.meanVar
 ```
+produces the following output:
+```
+intercept=10.80433928393
+slope= 1.17232224213
+poly2= 0.01918299582
+```
+
+## Example test run
+To ensure `sconce` was built and the above scripts were run correctly, we include some test files. Run the following:
+```
+time ./sconce --diploid test/test_healthy_avg.bed --tumor test/test_cancer_cell.bed --meanVarCoefFile test/test.meanVar --outputBase test/output_k5 --maxKploid 5 > test/output_k5.log 2> test/output_k5.err
+```
+Your output (with the exception of timing information) should match the provided `test/ref*` files.
 
 
 ## Output files
