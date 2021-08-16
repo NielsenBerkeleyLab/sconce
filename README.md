@@ -12,7 +12,10 @@ SCONCE is written in C++11, and requires
 SCONCE was developed and tested on Ubuntu 18.04.
 
 ## Installation instructions
-1. Clone this repo: `git clone git@github.com:NielsenBerkeleyLab/sconce.git`.
+1. Clone this repo:
+```
+git clone git@github.com:NielsenBerkeleyLab/sconce.git
+```
 2. Run `make`. This will build intermediates into the `build/` directory and create an executable named `sconce`.
 
 
