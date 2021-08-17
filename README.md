@@ -56,7 +56,7 @@ Rscript scripts/avgDiploid.R test/diploidFileList test/test_healthy_avg.bed
 ```
 produces the following output:
 ```
-$ head test/test_healthy_avg.bed2
+$ head test/test_healthy_avg.bed
 chr1    0       250000  325.87  2034.45767676768
 chr1    250000  500000  313.32  2038.01777777778
 chr1    500000  750000  314.41  2187.59787878788
