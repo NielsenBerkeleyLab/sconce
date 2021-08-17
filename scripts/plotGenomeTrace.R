@@ -12,7 +12,7 @@ library(reshape2)
 # Arg 6: [optional] /path/to/ground/truth/ploidy/bed/file (ie for simulations)
 #
 # sample usage:
-#   Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/ref_output_k5.bed test/ref_plot_k5.png "Reference Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
+#   Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/test_output_k5.bed test/test_output_k5.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
 
 # read in command line args
 args <- commandArgs(trailingOnly=TRUE)
