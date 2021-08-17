@@ -107,7 +107,7 @@ Genome traces can be plotted using the included [scripts/plotGenomeTrace.R](scri
 
 Using the test files from before:
 ```
-Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/ref_output_k5.bed test/ref_plot_k5.png "Reference Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
+Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/output_k5.bed test/output_k5_plot.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
 ```
 [The output plot](test/ref_plot_k5.png) is included for reference.
 
