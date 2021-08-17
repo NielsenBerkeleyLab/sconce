@@ -75,6 +75,7 @@ Rscript scripts/fitMeanVarRlnshp.R test/diploidFileList test/test.meanVar
 ```
 produces the following output:
 ```
+$ cat test/test.meanVar
 intercept=10.80433928393
 slope= 1.17232224213
 poly2= 0.01918299582
