@@ -105,11 +105,11 @@ Genome traces can be plotted using the included [scripts/plotGenomeTrace.R](scri
 - Arg 5: quoted text for the plot title (ex sample name)
 - Arg 6: [optional] /path/to/ground/truth/ploidy/bed/file (ie for simulations)
 
-Using the test files from before:
+Using the test files from before produces the following plot:
 ```
 Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/output_k5.bed test/output_k5_plot.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
 ```
-[The output plot](test/ref_plot_k5.png) is included for reference.
+![reference genome trace](test/ref_plot_k5.png)
 
 
 ## Simulations
