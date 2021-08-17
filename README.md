@@ -83,7 +83,7 @@ poly2= 0.01918299582
 ## Example test run
 To ensure `sconce` was built and the above scripts were run correctly, we include some test files. Run the following:
 ```
-time ./sconce --diploid test/test_healthy_avg.bed --tumor test/test_cancer_cell.bed --meanVarCoefFile test/test.meanVar --outputBase test/output_k5 --maxKploid 5 > test/output_k5.log 2> test/output_k5.err
+time ./sconce --diploid test/test_healthy_avg.bed --tumor test/test_cancer_cell.bed --meanVarCoefFile test/test.meanVar --outputBase test/test_output_k5 --maxKploid 5 > test/test_output_k5.log 2> test/test_output_k5.err
 ```
 Your output (with the exception of timing information) should match the provided `test/ref*` files.
 
@@ -92,7 +92,7 @@ Your output (with the exception of timing information) should match the provided
 SCONCE will create the following files automatically:
 - `<output>.hmm` This file contains the state of the HMM after the Baum Welch step and the state of the HMM after the BFGS step.
 - `<output>.bed` This file contains the copy number calls in tab separated bed format (`<chr>\t<start>\t<end>\t<ploidy>`)
-- `<output>.viterbiDecoded`. This tab separated files contains the copy number calls with more detail. The columns are `<coord>` (chr:start-end), `<diploid_mean>`, `<diploid_variance>`, `<tumor>` (observed tumor read count), `<ploidy_0-<k>>` (ploidy call in the range of 0 to `<k>`)
+- `<output>.viterbiDecoded`. This tab separated files contains the copy number calls with more detail. The columns are `<coord>` (chr:start-end), `<diploid_mean>`, `<diploid_variance>`, `<tumor>` (observed tumor read count), `<ploidy_0-<k>>` (ploidy call in the range of 0 to `<k>`). Note this file is only created if the `--saveViterbiDecoded` flag is used.
 
 SCONCE also prints log messages to stdout and error messages to stderr.
 If the `--verbose` flag is used, debugging statements will be printed to stderr.
@@ -107,7 +107,7 @@ Genome traces can be plotted using the included [scripts/plotGenomeTrace.R](scri
 
 Using the test files from before produces the following plot:
 ```
-Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/output_k5.bed test/output_k5_plot.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
+Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/test_output_k5.bed test/test_output_k5.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
 ```
 ![reference genome trace](test/ref_plot_k5.png)
 
