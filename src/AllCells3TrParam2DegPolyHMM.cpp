@@ -295,64 +295,70 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     int secondBestLibIdx = -1;
     double bestBwLik = -std::numeric_limits<double>::max();
     double secondBestBwLik = -std::numeric_limits<double>::max(); // not strictly second best by ll, could be higher in ll but have transient states/be suspicious
-    for(unsigned int bwIdx = 0; bwIdx < bwTotalLiks->size(); bwIdx++) {
-      bwTotalLik = (*bwTotalLiks)[bwIdx];
-      // bwTotalLik > bestBwLik > secondBestBwLik
-      // bwTotalLik is better than both bests seen so far, this is now the best
-      if(bwTotalLik > bestBwLik && bwTotalLik > secondBestBwLik) {
-        secondBestBwLik = bestBwLik;
-        secondBestLibIdx = bestLibIdx;
-        bestBwLik = bwTotalLik;
-        bestLibIdx = bwIdx;
+    if(numLibStarts > 1) {
+      for(unsigned int bwIdx = 0; bwIdx < bwTotalLiks->size(); bwIdx++) {
+        bwTotalLik = (*bwTotalLiks)[bwIdx];
+        // bwTotalLik > bestBwLik > secondBestBwLik
+        // bwTotalLik is better than both bests seen so far, this is now the best
+        if(bwTotalLik > bestBwLik && bwTotalLik > secondBestBwLik) {
+          secondBestBwLik = bestBwLik;
+          secondBestLibIdx = bestLibIdx;
+          bestBwLik = bwTotalLik;
+          bestLibIdx = bwIdx;
+        }
+        // bestBwLik > bwTotalLik > secondBestBwLik
+        // bwTotalLik is in the middle, new second best
+        else if(bwTotalLik < bestBwLik && bwTotalLik > secondBestBwLik) {
+          secondBestBwLik = bwTotalLik;
+          secondBestLibIdx = bwIdx;
+        }
+        // bestBwLik > secondBestBwLik > bwTotalLik
+        // bwTotalLik is worse, skip over
+        else {
+          continue;
+        }
       }
-      // bestBwLik > bwTotalLik > secondBestBwLik
-      // bwTotalLik is in the middle, new second best
-      else if(bwTotalLik < bestBwLik && bwTotalLik > secondBestBwLik) {
-        secondBestBwLik = bwTotalLik;
-        secondBestLibIdx = bwIdx;
-      }
-      // bestBwLik > secondBestBwLik > bwTotalLik
-      // bwTotalLik is worse, skip over
-      else {
-        continue;
-      }
-    }
-    bool bestHasTransientStates = (*bwHasTransientStates)[bestLibIdx];
-    bool secondBestHasTransientStates = (*bwHasTransientStates)[secondBestLibIdx];
+      bool bestHasTransientStates = (*bwHasTransientStates)[bestLibIdx];
+      bool secondBestHasTransientStates = (*bwHasTransientStates)[secondBestLibIdx];
 
-    std::cout << "Run " << bestLibIdx + 1 << " has the best loglikelihood (" << bestBwLik << "), followed by run " << secondBestLibIdx + 1 << " (" << secondBestBwLik << "), diff (" << std::abs(secondBestBwLik - bestBwLik) << ")." << std::endl;
-    // if bestHasTransientStates, might get replaced
-    int diffInLlThreshold = 100; // threshold for "close" ll
-    if(bestHasTransientStates) {
-      std::cout << "Best loglik has transient states, ";
-      // if second best is nearby or is not suspicious, replace best
-      if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold || !secondBestHasTransientStates) {
-        if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold) {
-          std::cout << "diff is small, ";
+      std::cout << "Run " << bestLibIdx + 1 << " has the best loglikelihood (" << bestBwLik << "), followed by run " << secondBestLibIdx + 1 << " (" << secondBestBwLik << "), diff (" << std::abs(secondBestBwLik - bestBwLik) << ")." << std::endl;
+      // if bestHasTransientStates, might get replaced
+      int diffInLlThreshold = 100; // threshold for "close" ll
+      if(bestHasTransientStates) {
+        std::cout << "Best loglik has transient states, ";
+        // if second best is nearby or is not suspicious, replace best
+        if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold || !secondBestHasTransientStates) {
+          if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold) {
+            std::cout << "diff is small, ";
+          }
+          if(!secondBestHasTransientStates) {
+            std::cout << "second best does NOT have transient states, ";
+          }
+          std::cout << "so replacing with second best." << std::endl;
+          bestLibIdx = secondBestLibIdx;
+          bestBwLik = secondBestBwLik;
+          bestHasTransientStates = secondBestHasTransientStates;
         }
-        if(!secondBestHasTransientStates) {
-          std::cout << "second best does NOT have transient states, ";
+        // else, no compelling reason to replace
+        else {
+          std::cout << "but second best ";
+          if(std::abs(secondBestBwLik - bestBwLik) >= diffInLlThreshold) {
+            std::cout << "is far, ";
+          }
+          if(secondBestHasTransientStates) {
+            std::cout << "has transient states, ";
+          }
+          std::cout << "so NOT replacing with second best." << std::endl;
         }
-        std::cout << "so replacing with second best." << std::endl;
-        bestLibIdx = secondBestLibIdx;
-        bestBwLik = secondBestBwLik;
-        bestHasTransientStates = secondBestHasTransientStates;
       }
-      // else, no compelling reason to replace
+      // else, just keep best
       else {
-        std::cout << "but second best ";
-        if(std::abs(secondBestBwLik - bestBwLik) >= diffInLlThreshold) {
-          std::cout << "is far, ";
-        }
-        if(secondBestHasTransientStates) {
-          std::cout << "has transient states, ";
-        }
-        std::cout << "so NOT replacing with second best." << std::endl;
+        std::cout << "Best loglik does NOT have transient states, using best." << std::endl;
       }
     }
-    // else, just keep best
     else {
-      std::cout << "Best loglik does NOT have transient states, using best." << std::endl;
+      std::cout << "Only one run, using it." << std::endl;
+      bestLibIdx = 0;
     }
     std::vector<gsl_matrix*>* bestBwTransitionMats = (*bwTransitionMats)[bestLibIdx];
     std::vector<gsl_vector*>* bestBwInitProbs = (*bwInitProbs)[bestLibIdx];
