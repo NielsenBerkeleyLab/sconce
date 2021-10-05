@@ -2,6 +2,8 @@
 
 This directory is for the program SCONCE (Single Cell cOpy Numbers in CancEr).
 
+Preprint at https://www.biorxiv.org/content/10.1101/2021.09.23.461581v1
+
 ## Dependencies
 SCONCE is written in C++11, and requires
 - GNU make (tested on v4.1)
