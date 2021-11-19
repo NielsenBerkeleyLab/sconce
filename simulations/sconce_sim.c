@@ -319,6 +319,31 @@ void makeDiploidGenomeNoGaps(struct Genome* first, double length)
   second->nextChr = NULL;
 }
 
+/*make a new duplicated diploid genome of length 'length'*/
+void makeDiploidGenomeNoGapsDuplicated(struct Genome* first, double length)
+{
+  struct Genome* second = NULL;
+  struct Genome* third = NULL;
+  struct Genome* fourth = NULL;
+
+  second = (struct Genome*)malloc(sizeof(struct Genome));
+  third = (struct Genome*)malloc(sizeof(struct Genome));
+  fourth = (struct Genome*)malloc(sizeof(struct Genome));
+
+  makeCHR_no_gaps(first, length);
+  first->nextChr = second; // Link first node with second
+
+  makeCHR_no_gaps(second, length);
+  second->nextChr = third; // Link first node with third
+
+  makeCHR_no_gaps(third, length);
+  third->nextChr = fourth; // Link first node with fourth
+
+  makeCHR_no_gaps(fourth, length);
+  fourth->nextChr = NULL;
+}
+
+
 /*copies the chromosome 'n' and returns pointer to the new copied chromosome*/
 struct Chr* copyChr(struct Chr* n) 
 { 
@@ -819,7 +844,13 @@ void sim_single_cell(double lambda_de, double lambda_am, double length_de, doubl
   struct Genome* G; 
 
   G = (struct Genome*)malloc(sizeof(struct Genome)); 
-  makeDiploidGenomeNoGaps(G, GENOMELENGTH);
+  if(cancer) {
+    makeDiploidGenomeNoGaps(G, GENOMELENGTH); // use this version for regular simulations
+    //makeDiploidGenomeNoGapsDuplicated(G, GENOMELENGTH); // use this version for a whole genome duplication (ie starts off with 4 chr instead of 2)
+  } else {
+    makeDiploidGenomeNoGaps(G, GENOMELENGTH);
+  }
+
 
   if (numleafs == 1)
   {
@@ -1259,6 +1290,7 @@ int main(int argc, char *argv[])
   else {
     printf("Now simulating %i cancer cell(s) using line segment model\n",numleafs);
     sim_single_cell(lambda_deletion, lambda_amplification, length_deletion, length_amplification, T, simparam, 1);
+    printtree();
     if (numberhealthy >0)
     {
       globalcounter=0;
