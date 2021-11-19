@@ -1770,7 +1770,7 @@ void HMM::saveCNAToBed(std::string filename, int cellIdx) {
       outFile << coord << sep;
 
       // viterbi decoded CNA
-      outFile << sep << (*(*currDepths->chrToViterbiPathMap)[currChr])[regionIdx];
+      outFile << (*(*currDepths->chrToViterbiPathMap)[currChr])[regionIdx];
 
       // new line
       outFile << std::endl;
