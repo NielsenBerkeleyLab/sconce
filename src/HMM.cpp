@@ -1883,4 +1883,53 @@ double HMM::checkForTransientStates() {
   return status;
 }
 
+double HMM::checkForInitProbGaps() {
+  // check if have 2 consec rows of 0, with any non zero afterwards, like [0.1, 0, 0, 0.1, 0...]
+  // don't want to catch things like [0.1, ..., 0, 0] (ie all zeros at the end), so must encounter a non zero entry in order to return NAN
+  double firstRow = 0;
+  double secondRow = 0;
+  double testVal = 0;
+  for(unsigned int i = 0; i < this->initProb->size - 1; i++) {
+    firstRow = gsl_vector_get(this->initProb, i);
+    secondRow = gsl_vector_get(this->initProb, i+1);
+    if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow)) {
+      for(unsigned int j = i+1; j < this->initProb->size; j++) {
+        testVal = gsl_vector_get(this->initProb, j);
+        // if encounter a non zero entry
+        if(!compareDoubles(0, testVal)) {
+          return GSL_NAN;
+        }
+      }
+    }
+  }
+  // check if have skipping rows of 0s, like [0.1, 0, 0.1, 0, 0.1, 0, ...]
+  // don't want to catch things like [0.4, 0.2, 0.3, 0, 0.1, 0, 0, 0] (ie the !0/0/!0/0/!0 pattern must be at the beginning
+  if(this->initProb->size > 4) {
+    unsigned int i = 0;
+    firstRow = gsl_vector_get(this->initProb, i);
+    secondRow = gsl_vector_get(this->initProb, i+1);
+    double thirdRow = gsl_vector_get(this->initProb, i+2);
+    double fourthRow = gsl_vector_get(this->initProb, i+3);
+    double fifthRow = gsl_vector_get(this->initProb, i+4);
+    // if !0/0/!0/0/!0, return NAN
+    if(!compareDoubles(0, firstRow) && compareDoubles(0, secondRow) && !compareDoubles(0, thirdRow) && compareDoubles(0, fourthRow) && !compareDoubles(0, fifthRow)) {
+      return GSL_NAN;
+    }
+  }
+  // check if have skipping rows of 0s, like [0.1, 0, 0.1, 0.1, 0, 0.1 ...]
+  // must match !0/0/!0/!0/0/!0 at the beginning
+  if(this->initProb->size > 6) {
+    unsigned int i = 0;
+    firstRow = gsl_vector_get(this->initProb, i);
+    secondRow = gsl_vector_get(this->initProb, i+1);
+    double thirdRow = gsl_vector_get(this->initProb, i+2);
+    double fourthRow = gsl_vector_get(this->initProb, i+3);
+    double fifthRow = gsl_vector_get(this->initProb, i+4);
+    double sixthRow = gsl_vector_get(this->initProb, i+5);
+    if(!compareDoubles(0, firstRow) && compareDoubles(0, secondRow) && !compareDoubles(0, thirdRow) && !compareDoubles(0, fourthRow) && compareDoubles(0, fifthRow) && !compareDoubles(0, sixthRow)) {
+      return GSL_NAN;
+    }
+  }
+  return 0;
+}
 

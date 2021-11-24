@@ -167,6 +167,24 @@ double AllCells3TrParam2DegPolyHMM::checkForTransientStates() {
   return status;
 }
 
+/*
+ * Function to check if initProb has gaps
+ * that is, check if the initProb vector is something like [0.15, 0, 0, 0.8, 0, 0, 0.05, 0]
+ * ie check if initProb vector has 0 for idx 1 and 2
+ */
+double AllCells3TrParam2DegPolyHMM::checkForInitProbGaps() {
+  HMM* currHMM = nullptr;
+  double status = 0;
+  for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
+    currHMM = (*this->hmmVec)[hmmIdx];
+    status = status + currHMM->checkForInitProbGaps();
+  }
+  std::cout << "AllCells3TrParam2DegPolyHMM::checkForInitProbGaps: " << status << std::endl;
+  return status;
+}
+
+
+
 void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, int numBWIters, int numLibStarts, double libStartValue) {
   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -196,11 +214,12 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
   }
   this->baumWelchParamResults = new std::vector<gsl_vector*>();
 
-  gsl_matrix* bwLibResults = gsl_matrix_alloc(numLibStarts, this->NUM_LIBS_TO_EST); // record results from each bw run. rows: runs, cols: cells
+  gsl_matrix* bwLibResults = gsl_matrix_alloc(numLibStarts + 1, this->NUM_LIBS_TO_EST); // record results from each bw run. rows: runs, cols: cells; add one for emergency anyInitProbGapsRescale case
   gsl_matrix_set_zero(bwLibResults);
   std::vector<std::vector<gsl_matrix*>*>* bwTransitionMats = new std::vector<std::vector<gsl_matrix*>*>(); // one tr mat per hmm per libStart
   std::vector<std::vector<gsl_vector*>*>* bwInitProbs = new std::vector<std::vector<gsl_vector*>*>();
   std::vector<bool>* bwHasTransientStates = new std::vector<bool>();
+  std::vector<bool>* bwHasInitProbGaps = new std::vector<bool>();
   std::vector<double>* bwTotalLiks = new std::vector<double>();
 
   gsl_vector* origParamsToEst = gsl_vector_alloc(this->getNumParamsToEst());
@@ -209,7 +228,8 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
   for(unsigned origTrIdx = 0; origTrIdx < origTransitionParams->size; origTrIdx++) {
     gsl_vector_set(origTransitionParams, origTrIdx, gsl_vector_get(origParamsToEst, this->SHARED_TRANSITION_PROB_START_IDX + origTrIdx));
   }
-  for(unsigned int libIdx = 0; libIdx < libMultipliers->size; libIdx++) {
+  bool anyInitProbGapsRescale = false;
+  for(unsigned int libIdx = 0; libIdx < libMultipliers->size || anyInitProbGapsRescale; libIdx++) {
     // reset to original transition params. libs set below to multiple of prev iter
     this->setAllTransition(origTransitionParams);
 
@@ -225,14 +245,29 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
         }
         else {
           double prevLib = gsl_matrix_get(bwLibResults, 0, hmmIdx * currHMM->NUM_LIBS_TO_EST + cellIdx); // scaling relative to first run
-          currHMM->setLibScalingFactor(cellIdx, gsl_vector_get(libMultipliers, libIdx) * prevLib); // scale prevLib by multiplier
-          gsl_vector_set(this->paramsToEst, this->LIB_SIZE_SCALING_FACTOR_START_IDX + i, gsl_vector_get(libMultipliers, libIdx) * prevLib);
+          double currLibMult = 0;
+          if(anyInitProbGapsRescale) {
+            currLibMult = gsl_vector_get(libMultipliers, libMultipliers->size - 1) * 2; // double the last multiplier
+          }
+          else {
+            currLibMult = gsl_vector_get(libMultipliers, libIdx);
+          }
+          currHMM->setLibScalingFactor(cellIdx, currLibMult * prevLib); // scale prevLib by multiplier
+          gsl_vector_set(this->paramsToEst, this->LIB_SIZE_SCALING_FACTOR_START_IDX + i, currLibMult * prevLib);
         }
         i++;
       }
     }
 
-    std::cout << "Starting AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess, with libMultiplier " << gsl_vector_get(libMultipliers, libIdx) << " (RUN " << libIdx + 1 << " OF " << libMultipliers->size << ")" << std::endl;
+    double currLibMult = 0;
+    if(anyInitProbGapsRescale) {
+      currLibMult = gsl_vector_get(libMultipliers, libMultipliers->size - 1) * 2; // double the last multiplier
+      std::cout << "anyInitProbGapsRescale flag is true, doubling the last multiplier" << std::endl;
+    }
+    else {
+      currLibMult = gsl_vector_get(libMultipliers, libIdx);
+    }
+    std::cout << "Starting AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess, with libMultiplier " << currLibMult << " (RUN " << libIdx + 1 << " OF " << libMultipliers->size << ")" << std::endl;
     this->print(stdout);
 
     // first call baum welch on each HMM
@@ -241,7 +276,15 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     begin = std::chrono::steady_clock::now();
     for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
       HMM* currHMM = (*this->hmmVec)[hmmIdx];
-      std::cout << "STARTING BAUM WELCH for HMM " << hmmIdx << ", WITH LIBMULTIPLIER " << gsl_vector_get(libMultipliers, libIdx) << " (RUN " << libIdx + 1 << " OF " << libMultipliers->size << ")" << std::endl;
+      double currLibMult = 0;
+      if(anyInitProbGapsRescale) {
+        currLibMult = gsl_vector_get(libMultipliers, libMultipliers->size - 1) * 2; // double the last multiplier
+      }
+      else {
+        currLibMult = gsl_vector_get(libMultipliers, libIdx);
+      }
+      std::cout << "STARTING BAUM WELCH for HMM " << hmmIdx << ", WITH LIBMULTIPLIER " << currLibMult << " (RUN " << libIdx + 1 << " OF " << libMultipliers->size << ")" << std::endl;
+
       if(this->gradientDebug) {
         std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before each baum welch
       }
@@ -259,6 +302,7 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
 
     // rule out any runs with transient states
     double hasTransientStates = this->checkForTransientStates();
+    double hasInitProbGaps = this->checkForInitProbGaps();
     bwTransitionMats->push_back(new std::vector<gsl_matrix*>());
     bwInitProbs->push_back(new std::vector<gsl_vector*>());
     for(unsigned int hmmIdx = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
@@ -274,6 +318,7 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
       (*bwInitProbs)[libIdx]->push_back(initProbToSave);
     }
     bwHasTransientStates->push_back(gsl_isnan(hasTransientStates));
+    bwHasInitProbGaps->push_back(gsl_isnan(hasInitProbGaps));
     bwTotalLiks->push_back(bwTotalLik);
 
 
@@ -288,6 +333,14 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     if(this->gradientDebug) {
       std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file before starting least squares bfgs
     }
+
+    // check if all libs have transient states if not currently already doing an emergency rerun (ie only do a rescale once)
+    if(anyInitProbGapsRescale) {
+      anyInitProbGapsRescale = false;
+    }
+    else if(libMultipliers->size > 1 && libIdx == libMultipliers->size - 1) { // and on the last planned iter
+      anyInitProbGapsRescale = std::any_of(bwHasInitProbGaps->begin(), bwHasInitProbGaps->end(), [](bool v) { return v; }); // https://stackoverflow.com/a/26896132
+    }
   } // end iterating over libMultipliers
 
     // figure out which libMultiplier result to send to the next step
@@ -296,7 +349,15 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     double bestBwLik = -std::numeric_limits<double>::max();
     double secondBestBwLik = -std::numeric_limits<double>::max(); // not strictly second best by ll, could be higher in ll but have transient states/be suspicious
     if(numLibStarts > 1) {
+      bool allHaveInitProbGaps = std::all_of(bwHasInitProbGaps->begin(), bwHasInitProbGaps->end(), [](bool v) { return v; }); // https://stackoverflow.com/a/26896132
       for(unsigned int bwIdx = 0; bwIdx < bwTotalLiks->size(); bwIdx++) {
+        // having gaps in initProb disqualifies, unless all have gaps
+        std::cout << "(*bwHasInitProbGaps)[bwIdx]: " << (*bwHasInitProbGaps)[bwIdx] << std::endl;
+        bool hasInitProbGaps = (*bwHasInitProbGaps)[bwIdx];
+        if(!allHaveInitProbGaps && hasInitProbGaps) {
+          std::cout << "!allHaveInitProbGaps && hasInitProbGaps " << bwIdx << ", " << bwTotalLiks->size() << std::endl;
+          continue;
+        }
         bwTotalLik = (*bwTotalLiks)[bwIdx];
         // bwTotalLik > bestBwLik > secondBestBwLik
         // bwTotalLik is better than both bests seen so far, this is now the best
@@ -318,47 +379,54 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
           continue;
         }
       }
-      bool bestHasTransientStates = (*bwHasTransientStates)[bestLibIdx];
-      bool secondBestHasTransientStates = (*bwHasTransientStates)[secondBestLibIdx];
-
-      std::cout << "Run " << bestLibIdx + 1 << " has the best loglikelihood (" << bestBwLik << "), followed by run " << secondBestLibIdx + 1 << " (" << secondBestBwLik << "), diff (" << std::abs(secondBestBwLik - bestBwLik) << ")." << std::endl;
-      // if bestHasTransientStates, might get replaced
-      int diffInLlThreshold = 100; // threshold for "close" ll
-      if(bestHasTransientStates) {
-        std::cout << "Best loglik has transient states, ";
-        // if second best is nearby or is not suspicious, replace best
-        if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold || !secondBestHasTransientStates) {
-          if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold) {
-            std::cout << "diff is small, ";
-          }
-          if(!secondBestHasTransientStates) {
-            std::cout << "second best does NOT have transient states, ";
-          }
-          std::cout << "so replacing with second best." << std::endl;
-          bestLibIdx = secondBestLibIdx;
-          bestBwLik = secondBestBwLik;
-          bestHasTransientStates = secondBestHasTransientStates;
-        }
-        // else, no compelling reason to replace
-        else {
-          std::cout << "but second best ";
-          if(std::abs(secondBestBwLik - bestBwLik) >= diffInLlThreshold) {
-            std::cout << "is far, ";
-          }
-          if(secondBestHasTransientStates) {
-            std::cout << "has transient states, ";
-          }
-          std::cout << "so NOT replacing with second best." << std::endl;
-        }
+      // if only one run has qualified due to all others having initProbGaps, just use the bestLibIdx
+      if(secondBestLibIdx < 0) {
+        std::cout << "Run " << bestLibIdx + 1 << "is the only run qualified without any initProbGaps, using run " << bestLibIdx  + 1 << std::endl;
       }
-      // else, just keep best
       else {
-        std::cout << "Best loglik does NOT have transient states, using best." << std::endl;
-      }
-    }
+        bool bestHasTransientStates = (*bwHasTransientStates)[bestLibIdx];
+        bool secondBestHasTransientStates = (*bwHasTransientStates)[secondBestLibIdx];
+
+        std::cout << "Run " << bestLibIdx + 1 << " has the best loglikelihood (" << bestBwLik << "), followed by run " << secondBestLibIdx + 1 << " (" << secondBestBwLik << "), diff (" << std::abs(secondBestBwLik - bestBwLik) << ")." << std::endl;
+        // if bestHasTransientStates, might get replaced
+        int diffInLlThreshold = 100; // threshold for "close" ll
+        if(bestHasTransientStates) {
+          std::cout << "Best loglik has transient states, ";
+          // if second best is nearby or is not suspicious, replace best
+          if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold || !secondBestHasTransientStates) {
+            if(std::abs(secondBestBwLik - bestBwLik) < diffInLlThreshold) {
+              std::cout << "diff is small, ";
+            }
+            if(!secondBestHasTransientStates) {
+              std::cout << "second best does NOT have transient states, ";
+            }
+            std::cout << "so replacing with second best." << std::endl;
+            bestLibIdx = secondBestLibIdx;
+            bestBwLik = secondBestBwLik;
+            bestHasTransientStates = secondBestHasTransientStates;
+          }
+          // else, no compelling reason to replace
+          else {
+            std::cout << "but second best ";
+            if(std::abs(secondBestBwLik - bestBwLik) >= diffInLlThreshold) {
+              std::cout << "is far, ";
+            }
+            if(secondBestHasTransientStates) {
+              std::cout << "has transient states, ";
+            }
+            std::cout << "so NOT replacing with second best." << std::endl;
+          } // end no compelling reason to replace
+        } // end bestHasTransientStates
+        // else, just keep best
+        else {
+          std::cout << "Best loglik does NOT have transient states, using best." << std::endl;
+        }
+      } // end multiple qualifying runs (secondBestIdx >= 0)
+    } // end more than one libStart
     else {
       std::cout << "Only one run, using it." << std::endl;
       bestLibIdx = 0;
+      bestBwLik = (*bwTotalLiks)[bestLibIdx];
     }
     std::vector<gsl_matrix*>* bestBwTransitionMats = (*bwTransitionMats)[bestLibIdx];
     std::vector<gsl_vector*>* bestBwInitProbs = (*bwInitProbs)[bestLibIdx];

@@ -181,6 +181,7 @@ class HMM : public Optimizable {
     virtual double checkStateValidity(double epsilon = 1e-8) const override; // should check if transition matrices are ok
     virtual double checkStateValidity(gsl_matrix* mat, double epsilon = 1e-8) const; // should check if passed matrix is ok
     virtual double checkForTransientStates(); // check if states only show up transiently
+    virtual double checkForInitProbGaps(); // check if initProb has big gaps in between states
     virtual void miscFunctions() override;
 
     // destructor

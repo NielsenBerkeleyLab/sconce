@@ -88,6 +88,7 @@ class AllCells3TrParam2DegPolyHMM : public Optimizable {
     virtual double checkOptimProbValidity(gsl_vector* probs) const override;
     virtual double checkStateValidity(double epislon = 1e-8) const override; // should check if transition matrices are ok
     virtual double checkForTransientStates(); // check if states only show up transiently
+    virtual double checkForInitProbGaps(); // check if initProb has big gaps in between states
     virtual void setSimParamsToEst(gsl_vector* params) override = 0;
     virtual void setSimFixedParams(gsl_vector* params) override = 0;
     virtual void miscFunctions() override = 0;
