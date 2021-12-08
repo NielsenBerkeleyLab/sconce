@@ -449,9 +449,36 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
     this->print(stdout);
 
     // then solve overdetermined system of equations for each HMM
-    this->doLeastSquares(initGuess);
+    double leastSquaresStatus = this->doLeastSquares(initGuess);
 
     double lsTotalLik = this->getLogLikelihood();
+
+    // if all least squares attempts failed, keep lib size and original rate params
+    if(gsl_isnan(leastSquaresStatus) || compareDoubles(0, lsTotalLik - bestBwLik)) {
+      std::cout << "WARNING: All least squares attempts failed, no change from Baum Welch loglik. Using best library scaling factor and original rate params" << std::endl;
+      if(this->gradientDebug) {
+        std::cerr << "##################################################################" << std::endl; // add a buffer line to the err file after ending least squares bfgs
+      }
+      gsl_vector* origParamsToEstCopy = gsl_vector_alloc(origParamsToEst->size);
+      gsl_vector_memcpy(origParamsToEstCopy, origParamsToEst);
+
+      for(unsigned int hmmIdx = 0, i = 0; hmmIdx < this->hmmVec->size(); hmmIdx++) {
+        HMM* currHMM = (*this->hmmVec)[hmmIdx];
+        // nullptr guard
+        if(currHMM == nullptr) {
+          continue;
+        }
+
+        for(int cellIdx = 0; cellIdx < currHMM->NUM_CELLS; cellIdx++) {
+          double bestLibFromBw = gsl_matrix_get(bwLibResults, bestLibIdx, hmmIdx * currHMM->NUM_LIBS_TO_EST + cellIdx);
+          gsl_vector_set(origParamsToEstCopy, this->LIB_SIZE_SCALING_FACTOR_START_IDX + i, bestLibFromBw);
+          i++;
+        }
+      }
+      this->baumWelchParamResults->push_back(origParamsToEstCopy);
+      this->setParamsToEst(origParamsToEstCopy);
+    }
+
     end = std::chrono::steady_clock::now();
     elapsedSec = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0;
     totalTime += elapsedSec;
