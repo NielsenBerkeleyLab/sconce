@@ -1892,7 +1892,7 @@ double HMM::checkForInitProbGaps() {
   for(unsigned int i = 0; i < this->initProb->size - 1; i++) {
     firstRow = gsl_vector_get(this->initProb, i);
     secondRow = gsl_vector_get(this->initProb, i+1);
-    if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow)) {
+    if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow, 0.075)) { // looser second row check
       for(unsigned int j = i+1; j < this->initProb->size; j++) {
         testVal = gsl_vector_get(this->initProb, j);
         // if encounter a non zero entry
