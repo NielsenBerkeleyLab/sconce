@@ -829,8 +829,8 @@ void recursesim(struct Genome* G, int node, double lambda_de, double lambda_am, 
   }
   else
   { 
-    //printf("Genome in node %i:\n",node);
-    //printGenome(G);
+    printf("Genome in node %i:\n",node);
+    printGenome(G);
     sim_and_print_binnumbers(globalcounter, 1, G, parameters);
     globalcounter++;
     delete_genome(G);
@@ -1233,7 +1233,7 @@ void checkratematrix(double **ratematrix, int max)
   */
 
 
-//compile using gcc sconce_sim.c ranlib.c rnglib.c -o sconce_sit -lm
+//compile using gcc sconce_sim.c ranlib.c rnglib.c -o sconce_sim -lm
 int main(int argc, char *argv[])
 {
 

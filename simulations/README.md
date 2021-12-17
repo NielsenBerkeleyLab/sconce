@@ -45,7 +45,9 @@ All published simulation sets use the same `<paramfile>` format. The `<paramfile
 ```
 
 ## Example parameter files
-Parameter files for the SCONCE paper dataset are included in the inputFiles directory for reproducibility. All of the simulation sets use the same paramfile.txt. Sets A-D are under the line segment model, and E-J are under the binned model.
+Parameter files for the SCONCE paper dataset are included in the inputFiles directory for reproducibility. All of the simulation sets use the same paramfile.txt. Sets A-D are under the line segment model, and E-K are under the binned model.
+
+Note that set B has a whole genome duplication before any CNAs. This requires calling `makeDiploidGenomeNoGapsDuplicated` instead of `makeDiploidGenomeNoGaps` in `sconce_sim.c`. To do this, uncomment `makeDiploidGenomeNoGapsDuplicated` (line 849) and comment out `makeDiploidGenomeNoGaps` (line 848) and recompile.
 
 The included test files are from parameter set A, with seed 0. The tumor cell is cell 0.
 
