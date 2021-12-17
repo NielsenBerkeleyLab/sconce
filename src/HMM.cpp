@@ -1886,18 +1886,51 @@ double HMM::checkForTransientStates() {
 double HMM::checkForInitProbGaps() {
   // check if have 2 consec rows of 0, with any non zero afterwards, like [0.1, 0, 0, 0.1, 0...]
   // don't want to catch things like [0.1, ..., 0, 0] (ie all zeros at the end), so must encounter a non zero entry in order to return NAN
+  double zeroRow = gsl_vector_get(this->initProb, 0);
   double firstRow = 0;
   double secondRow = 0;
-  double testVal = 0;
-  for(unsigned int i = 0; i < this->initProb->size - 1; i++) {
-    firstRow = gsl_vector_get(this->initProb, i);
-    secondRow = gsl_vector_get(this->initProb, i+1);
-    if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow, 0.075)) { // looser second row check
-      for(unsigned int j = i+1; j < this->initProb->size; j++) {
-        testVal = gsl_vector_get(this->initProb, j);
-        // if encounter a non zero entry
-        if(!compareDoubles(0, testVal)) {
-          return GSL_NAN;
+  if(!compareDoubles(0, zeroRow)) {
+    double testVal = 0;
+    for(unsigned int i = 1; i < this->initProb->size - 1; i++) {
+      firstRow = gsl_vector_get(this->initProb, i);
+      secondRow = gsl_vector_get(this->initProb, i+1);
+      if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow)) { // strict case
+        for(unsigned int j = i+1; j < this->initProb->size; j++) {
+          testVal = gsl_vector_get(this->initProb, j);
+          // if encounter a non zero entry
+          if(!compareDoubles(0, testVal)) {
+            return GSL_NAN;
+          }
+        }
+      }
+    }
+  }
+  zeroRow = gsl_vector_get(this->initProb, 0);
+  firstRow = gsl_vector_get(this->initProb, 1);
+  // only do looser second check if 0'th entry is not zero but first is
+  if(!compareDoubles(0, zeroRow) && compareDoubles(0, firstRow)) {
+    double testVal = 0;
+    for(unsigned int i = 1; i < this->initProb->size - 1; i++) {
+      firstRow = gsl_vector_get(this->initProb, i);
+      secondRow = gsl_vector_get(this->initProb, i+1);
+       // check if have one instance of double 0's && <=2 entries that are > 1/k? (ie if most prob is centered in only 2 entries ==> bad)
+       if(compareDoubles(0, firstRow) && compareDoubles(0, secondRow, 0.075)) { // looser second row check
+        // have double 0's, need to check if have enough non zero entries
+        int numLargeEntries = 0;
+        for(unsigned int j = 0; j < this->initProb->size; j++) {
+          if(gsl_vector_get(this->initProb, j) > 1.0 / this->MAX_PLOIDY) {
+            numLargeEntries++;
+          }
+        }
+        if(numLargeEntries <= 2) {
+          // if have only a few large entries, make sure there's a non zero entry later (ie not catching just a bunch of 0's at the end of initProb)
+          for(unsigned int j = i+1; j < this->initProb->size; j++) {
+            testVal = gsl_vector_get(this->initProb, j);
+            // if encounter a non zero entry
+            if(!compareDoubles(0, testVal)) {
+              return GSL_NAN;
+            }
+          }
         }
       }
     }
@@ -1926,6 +1959,7 @@ double HMM::checkForInitProbGaps() {
     double fourthRow = gsl_vector_get(this->initProb, i+3);
     double fifthRow = gsl_vector_get(this->initProb, i+4);
     double sixthRow = gsl_vector_get(this->initProb, i+5);
+    // if !0/0/!0/!0/0/!0, return NAN
     if(!compareDoubles(0, firstRow) && compareDoubles(0, secondRow) && !compareDoubles(0, thirdRow) && !compareDoubles(0, fourthRow) && compareDoubles(0, fifthRow) && !compareDoubles(0, sixthRow)) {
       return GSL_NAN;
     }

@@ -35,7 +35,6 @@ int main(int argc, char** argv) {
 
   // optimization start points
   bool bwStart = true; // run baum welch first
-  bool disableBWstart = false; // command line flag for disabling running baum welch first
   int numBWIters = 0;
   int numLibStarts = 0;
   double libStartVal = 0;
@@ -56,7 +55,6 @@ int main(int argc, char** argv) {
       ("maxKploid,k", po::value<int>(&maxKploid)->default_value(10), "maximum allowed ploidy")
       ("verbose,v", po::bool_switch(&verbose)->default_value(false), "enable debugging statements")
       ("saveViterbiDecoded", po::bool_switch(&saveVitDec)->default_value(false), "enable saving CNA calls in more verbose viterbiDecoded format")
-      ("disableBWstart", po::bool_switch(&disableBWstart)->default_value(false), "disable running baum welch to get initial starting points for BFGS")
       ("disableEstLibBFGS", po::bool_switch(&fixLib)->default_value(false), "disable estimating library sizes using BFGS after baum welch")
       ("disableEstTrParamsBFGS", po::bool_switch(&disableEstTrParamsBFGS)->default_value(false), "disable estimating transition params using BFGS")
       ("bwIters", po::value<int>(&numBWIters)->default_value(20), "number of baum welch iterations")
@@ -107,9 +105,6 @@ int main(int argc, char** argv) {
   }
   if(disableEstTrParamsBFGS) {
     estTrParamsBFGS = false;
-  }
-  if(disableBWstart) {
-    bwStart = false;
   }
 
   // ##### set up AllInd2Stages obj #####
