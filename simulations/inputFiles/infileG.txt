@@ -14,5 +14,5 @@
 
 Description:
 binned set G
-long segments
+many overlapping CNAs, with k=8 and nonuniform initialization matrix
 

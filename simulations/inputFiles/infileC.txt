@@ -1,9 +1,10 @@
 0 100 100 0 100
-0.0005  0.0001 10 10
-1.0
+0.005  0.0001 5 0.05
+150.0
 0.0
+
 
 Description:
 line segment set C
-many deletions
+many large deletions
 

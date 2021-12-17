@@ -11,5 +11,5 @@
 
 Description:
 binned set E
-many short and spiky CNAs
+very short spikey CNAs, with k=5 and uniform initialization matrix
 

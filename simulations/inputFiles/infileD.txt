@@ -5,5 +5,5 @@
 
 Description:
 line segment set D
-many insertions
+many large insertions
 

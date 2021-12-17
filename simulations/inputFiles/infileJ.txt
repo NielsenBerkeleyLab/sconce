@@ -14,5 +14,5 @@
 
 Description:
 binned set J
-longer segments
+many overlapping CNAs, with k=8 and uniform initialization matrix
 
