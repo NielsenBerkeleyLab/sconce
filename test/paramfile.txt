@@ -1,0 +1,5 @@
+12397 50 4000000 1
+
+Parameters are:
+<# bins to divide the genome into> <parameter r of the negative binomial (must be integer, converges to Poisson as r goes to infinity> <total expected number of reads (note that the observed number is random)> <flag for even coverage in expectation before accounting for CNAs>
+
