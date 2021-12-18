@@ -352,7 +352,6 @@ void AllCells3TrParam2DegPolyHMM::setBaumWelchInitGuess(gsl_vector* initGuess, i
       bool allHaveInitProbGaps = std::all_of(bwHasInitProbGaps->begin(), bwHasInitProbGaps->end(), [](bool v) { return v; }); // https://stackoverflow.com/a/26896132
       for(unsigned int bwIdx = 0; bwIdx < bwTotalLiks->size(); bwIdx++) {
         // having gaps in initProb disqualifies, unless all have gaps
-        std::cout << "(*bwHasInitProbGaps)[bwIdx]: " << (*bwHasInitProbGaps)[bwIdx] << std::endl;
         bool hasInitProbGaps = (*bwHasInitProbGaps)[bwIdx];
         if(!allHaveInitProbGaps && hasInitProbGaps) {
           std::cout << "!allHaveInitProbGaps && hasInitProbGaps " << bwIdx << ", " << bwTotalLiks->size() << std::endl;
