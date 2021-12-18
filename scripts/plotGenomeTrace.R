@@ -74,7 +74,7 @@ trace <- ggplot() +
   geom_ribbon(dat=avgDiploid, aes(x=idx, ymin=(readDepth - sqrt(var)), ymax=(readDepth + sqrt(var))), fill="lightblue", alpha=0.2) +
   geom_point(dat=obsReadDepth, aes(x=idx, y=readDepth), alpha=0.3, colour="darkgray", size=0.5) +
   geom_line(data=sconceDat, aes(x=idx, y=estPloidy * scalingFactor), colour="#C49A00") +
-  scale_y_continuous(sec.axis=sec_axis(~ . / scalingFactor, name="ploidy")) +
+  scale_y_continuous(sec.axis=sec_axis(~ . / scalingFactor, name="copy number")) +
   theme_bw() +
   geom_vline(xintercept=chrBoundaryIdx, colour="gray30") +
   theme(legend.position="none", panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank(), axis.ticks.x=element_blank()) +
