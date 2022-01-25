@@ -157,7 +157,9 @@ class HMM : public Optimizable {
 
     // functions that change based on model
     virtual double getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) = 0;
-    virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) = 0; // slightly faster to cache currChrDepthsVec; cellDepth = (*(*currChrDepthsVec)[cellIdx])[depthIdx];
+    virtual double getTotalEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) = 0;
+    virtual double getLogEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) = 0;
+    virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) = 0;
     virtual void simulate() = 0;
     virtual void simulate(int seed) = 0;
     virtual void setUpBaumWelchLeastSquares() = 0;

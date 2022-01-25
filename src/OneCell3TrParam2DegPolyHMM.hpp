@@ -42,6 +42,8 @@ class OneCell3TrParam2DegPolyHMM : public HMM {
 
     // functions that depend on model
     virtual double getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) override;
+    virtual double getTotalEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) override;
+    virtual double getLogEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) override;
     virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) override;
     virtual OneCell3TrParam2DegPolyHMM* bfgs(gsl_vector* initGuess, bool verbose = true) override;
     virtual void simulate() override;

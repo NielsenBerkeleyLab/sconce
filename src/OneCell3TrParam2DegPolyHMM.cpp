@@ -139,6 +139,12 @@ void OneCell3TrParam2DegPolyHMM::convertParamToProb(gsl_vector* dest, const gsl_
  ********
  */
 double OneCell3TrParam2DegPolyHMM::getEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) {
+  return exp(this->getLogEmissionProb(tumorDepth, diploidDepth, ploidy, cellIdx));
+}
+double OneCell3TrParam2DegPolyHMM::getTotalEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) {
+  return exp(this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx));
+}
+double OneCell3TrParam2DegPolyHMM::getLogEmissionProb(double tumorDepth, double diploidDepth, int ploidy, int cellIdx) {
   // if diploidDepth == 0, assume this is a hard to map region (ie any tumor reads mapping here are spurious)
   // P(any number reads | no data) = 1
   if(diploidDepth < 1e-4) {
@@ -168,7 +174,7 @@ double OneCell3TrParam2DegPolyHMM::getEmissionProb(double tumorDepth, double dip
 
   double likelihood = -1;
   int k = (int) tumorDepth;
-  likelihood = exp(lgamma(r+k) - lgamma(r) - this->getLogFacK(k) + r * log(p) + k * log(1-p));
+  likelihood = lgamma(r+k) - lgamma(r) - this->getLogFacK(k) + r * log(p) + k * log(1-p);
   return likelihood;
 }
 

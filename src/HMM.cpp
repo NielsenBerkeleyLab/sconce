@@ -732,10 +732,9 @@ double HMM::runForwardAlg() {
     (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
 
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
-      currResPloidy = emissionProb + log(gsl_vector_get(this->initProb, stateIdx));
-
-      gsl_matrix_set(forwardMat, stateIdx, 0, exp(currResPloidy));
+      emissionProb = this->getTotalEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
+      currResPloidy = emissionProb * (gsl_vector_get(this->initProb, stateIdx));
+      gsl_matrix_set(forwardMat, stateIdx, 0, currResPloidy);
     }
 
     // rescale first col by max
@@ -754,12 +753,12 @@ double HMM::runForwardAlg() {
 
       // iter over states in col i
       for(stateIdx = 0; stateIdx < (int) this->states->size(); stateIdx++) {
-        emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
+        emissionProb = this->getTotalEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
 
         // iter over possible transitions
         for(j = 0; j < this->prevForwardCol->size; j++) {
           currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx);
-          gsl_vector_set(this->currForwardCol, stateIdx, currResPloidy + exp(emissionProb + log(gsl_vector_get(this->prevForwardCol, j)) + log(gsl_matrix_get(this->transition, j, stateIdx))));
+          gsl_vector_set(this->currForwardCol, stateIdx, currResPloidy + emissionProb * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx));
         }
       }
 
@@ -865,9 +864,8 @@ double HMM::runBackwardAlg() {
         // iter over possible transitions
         for(j = 0; j < (int) this->nextBackwardCol->size; j++) {
           currResPloidy = gsl_vector_get(this->currBackwardCol, stateIdx);
-
-          emissionProb = this->getTotalLogEmissionProb(j, currChrDepthsVec, chrIdx, depthIdx);
-          gsl_vector_set(this->currBackwardCol, stateIdx, currResPloidy + exp(emissionProb + log(gsl_vector_get(this->nextBackwardCol, j)) + log(gsl_matrix_get(this->transition, stateIdx, j))));
+          emissionProb = this->getTotalEmissionProb(j, currChrDepthsVec, chrIdx, depthIdx);
+          gsl_vector_set(this->currBackwardCol, stateIdx, currResPloidy + emissionProb * gsl_vector_get(this->nextBackwardCol, j) * gsl_matrix_get(this->transition, stateIdx, j));
         }
       }
 
@@ -886,10 +884,9 @@ double HMM::runBackwardAlg() {
 
     scalingFactor = gsl_vector_get(scalingVec, 0);
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
-
+      emissionProb = this->getTotalEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
       initProb = gsl_vector_get(this->initProb, stateIdx);
-      currRes = exp(emissionProb + log(initProb) + log(gsl_matrix_get(backwardMat, stateIdx, 0)) - log(scalingFactor));
+      currRes = emissionProb * initProb * gsl_matrix_get(backwardMat, stateIdx, 0) / scalingFactor;
       gsl_vector_set(this->currBackwardCol, stateIdx, currRes);
     }
 
@@ -1316,9 +1313,9 @@ void HMM::viterbiDecode() {
     emissionProb = 1;
     // for each state in first col
     for(stateIdx = 0; stateIdx < (int) this->initProb->size; stateIdx++) {
-      emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
-      currResPloidy = emissionProb + log(gsl_vector_get(this->initProb, stateIdx));
-      gsl_matrix_set(forwardMat, stateIdx, 0, exp(currResPloidy));
+      emissionProb = this->getTotalEmissionProb(stateIdx, currChrDepthsVec, chrIdx, 0);
+      currResPloidy = emissionProb * (gsl_vector_get(this->initProb, stateIdx));
+      gsl_matrix_set(forwardMat, stateIdx, 0, currResPloidy);
     }
 
     // rescale first col by max
@@ -1336,13 +1333,13 @@ void HMM::viterbiDecode() {
 
       // iter over states in col i
       for(stateIdx = 0; stateIdx < (int) this->states->size(); stateIdx++) {
-        emissionProb = this->getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
+        emissionProb = this->getTotalEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
         currMax = -1;
         currMaxIdx = -1;
 
         // iter over possible transitions
         for(j = 0; j < this->prevForwardCol->size; j++) {
-          currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx) + exp(emissionProb) * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx);
+          currResPloidy = gsl_vector_get(this->currForwardCol, stateIdx) + (emissionProb) * gsl_vector_get(this->prevForwardCol, j) * gsl_matrix_get(this->transition, j, stateIdx);
           if(currResPloidy > currMax) {
             currMax = currResPloidy;
             currMaxIdx = j;

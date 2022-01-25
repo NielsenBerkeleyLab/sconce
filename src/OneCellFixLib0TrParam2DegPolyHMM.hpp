@@ -12,7 +12,8 @@
 class OneCellFixLib0TrParam2DegPolyHMM : public OneCell0TrParam2DegPolyHMM {
   protected:
     std::vector<gsl_matrix*>* totalLogEmissionLookup; // chrIdx:[rows: depthIdx, cols: stateIdx]. Copied directly from TwoCellFixLib3TrParam2DegPolyHMM
-    void updateTotalLogEmissionLookup();
+    std::vector<gsl_matrix*>* totalEmissionLookup; // chrIdx:[rows: depthIdx, cols: stateIdx]. Copied directly from TwoCellFixLib3TrParam2DegPolyHMM
+    void updateAllTotalEmissionLookup();
 
     OneCellFixLib0TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int maxPloidy, int numTrParamsToEst, int numFixedTrParams, int numFixedLibs, int numBranches);
 
@@ -25,6 +26,7 @@ class OneCellFixLib0TrParam2DegPolyHMM : public OneCell0TrParam2DegPolyHMM {
     virtual void setLibScalingFactor(int cellNum, double libScalingFactor) override;
     virtual double getLibScalingFactor(int cellNum) const override;
     virtual double getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) override;
+    virtual double getTotalEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) override;
     virtual void setMeanVarianceFn(gsl_vector* meanVarianceCoefVec) override;
 
     // functions that depend on numbering and ordering of transition params

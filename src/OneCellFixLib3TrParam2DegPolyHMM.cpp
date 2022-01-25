@@ -6,16 +6,19 @@ OneCellFixLib3TrParam2DegPolyHMM::OneCellFixLib3TrParam2DegPolyHMM(std::vector<D
 OneCellFixLib3TrParam2DegPolyHMM::OneCellFixLib3TrParam2DegPolyHMM(std::vector<DepthPair*>* depths, gsl_vector* fixedParams, int maxPloidy, int numTrParamsToEst, int numFixedTrParams, int numFixedLibs, int numBranches) : OneCell3TrParam2DegPolyHMM(depths, fixedParams, maxPloidy, numTrParamsToEst, numFixedTrParams, numFixedLibs, numBranches) {
   this->maxNumBFGSStarts = 0;
 
-  // set up totalLogEmissionLookup
+  // set up totalLogEmissionLookup and totalEmissionLookup
   std::string currChr;
   int currNumWindows = -1;
   std::vector<std::string>* chrVec = this->getChrVec();
   this->totalLogEmissionLookup = new std::vector<gsl_matrix*>();
+  this->totalEmissionLookup = new std::vector<gsl_matrix*>();
   for(unsigned int chrIdx = 0; chrIdx < chrVec->size(); chrIdx++) {
     currChr = (*chrVec)[chrIdx];
     currNumWindows = (*(*this->depths)[0]->regions)[currChr]->size();
     this->totalLogEmissionLookup->push_back(gsl_matrix_alloc(currNumWindows, this->states->size())); // transposed
+    this->totalEmissionLookup->push_back(gsl_matrix_alloc(currNumWindows, this->states->size())); // transposed
     gsl_matrix_set_zero((*this->totalLogEmissionLookup)[chrIdx]);
+    gsl_matrix_set_zero((*this->totalEmissionLookup)[chrIdx]);
   }
 }
 
@@ -23,43 +26,54 @@ OneCellFixLib3TrParam2DegPolyHMM::~OneCellFixLib3TrParam2DegPolyHMM() {
   for(std::vector<gsl_matrix*>::iterator it = this->totalLogEmissionLookup->begin(); it != this->totalLogEmissionLookup->end(); ++it) {
     gsl_matrix_free(*it);
   }
+  for(std::vector<gsl_matrix*>::iterator it = this->totalEmissionLookup->begin(); it != this->totalEmissionLookup->end(); ++it) {
+    gsl_matrix_free(*it);
+  }
   delete this->totalLogEmissionLookup;
+  delete this->totalEmissionLookup;
 }
 
 void OneCellFixLib3TrParam2DegPolyHMM::setLibScalingFactor(int cellNum, double libScalingFactor) {
   gsl_vector_set(this->fixedParams, this->LIB_SIZE_SCALING_FACTOR_START_IDX + cellNum, libScalingFactor);
-  this->updateTotalLogEmissionLookup();
+  this->updateAllTotalEmissionLookup();
 }
 double OneCellFixLib3TrParam2DegPolyHMM::getLibScalingFactor(int cellNum) const {
   return gsl_vector_get(this->fixedParams, this->LIB_SIZE_SCALING_FACTOR_START_IDX + cellNum);
 }
 
 /*
- * currChrDepthsVec is ignored. Assumes updateTotalLogEmissionLookup is called
+ * currChrDepthsVec is ignored. Assumes updateAllTotalEmissionLookup is called
  * every time lib sizes are updated
  */
 double OneCellFixLib3TrParam2DegPolyHMM::getTotalLogEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) {
   gsl_matrix* currChrEmissionMat = (*this->totalLogEmissionLookup)[chrIdx];
   return gsl_matrix_get(currChrEmissionMat, depthIdx, stateIdx); // transposed
 }
+double OneCellFixLib3TrParam2DegPolyHMM::getTotalEmissionProb(int stateIdx, std::vector<std::vector<double>*>* currChrDepthsVec, int chrIdx, int depthIdx) {
+  gsl_matrix* currChrEmissionMat = (*this->totalEmissionLookup)[chrIdx];
+  return gsl_matrix_get(currChrEmissionMat, depthIdx, stateIdx); // transposed
+}
 
 /*
- * updates totalLogEmissionLookup, where each entry corresponds to one chr's matrix.
+ * updates totalLogEmissionLookup and totalEmissionLookup, where each entry corresponds to one chr's matrix.
  * Each matrix is rows: depthIdx, cols: states (trying out since  matrices are stored row major, and we iter through all states in a window before moving to the next window). Each entry is calculated by
  * OneCell3Tr2DegPolyHMM's getTotalLogEmissionProb
  */
-void OneCellFixLib3TrParam2DegPolyHMM::updateTotalLogEmissionLookup() {
+void OneCellFixLib3TrParam2DegPolyHMM::updateAllTotalEmissionLookup() {
   std::vector<std::string>* chrVec = this->getChrVec();
   std::vector<std::vector<double>*>* currChrDepthsVec = new std::vector<std::vector<double>*>(this->NUM_CELLS + 1);
   DepthPair* firstDepthPair = (*this->depths)[0]; // for convenience
   DepthPair* currDepths = nullptr;
   int cellIdx = 0;
   std::string currChr;
+  gsl_matrix* currChrLogEmissionMat = nullptr;
   gsl_matrix* currChrEmissionMat = nullptr;
+  double currLogEmi = 0;
 
   // for each chr
   for(unsigned int chrIdx = 0; chrIdx < chrVec->size(); chrIdx++) {
-    currChrEmissionMat = (*this->totalLogEmissionLookup)[chrIdx];
+    currChrLogEmissionMat = (*this->totalLogEmissionLookup)[chrIdx];
+    currChrEmissionMat = (*this->totalEmissionLookup)[chrIdx];
     currChr = (*chrVec)[chrIdx];
     for(cellIdx = 0; cellIdx < this->NUM_CELLS; cellIdx++) {
       currDepths = (*this->depths)[cellIdx];
@@ -67,9 +81,11 @@ void OneCellFixLib3TrParam2DegPolyHMM::updateTotalLogEmissionLookup() {
     }
     (*currChrDepthsVec)[this->NUM_CELLS] = (*firstDepthPair->chrToDiploidDepthMap)[currChr];
 
-    for(unsigned int stateIdx = 0; stateIdx < currChrEmissionMat->size2; stateIdx++) { // transposed
-      for(unsigned int depthIdx = 0; depthIdx < currChrEmissionMat->size1; depthIdx++) {
-        gsl_matrix_set(currChrEmissionMat, depthIdx, stateIdx, OneCell3TrParam2DegPolyHMM::getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx)); // transposed
+    for(unsigned int stateIdx = 0; stateIdx < currChrLogEmissionMat->size2; stateIdx++) { // transposed
+      for(unsigned int depthIdx = 0; depthIdx < currChrLogEmissionMat->size1; depthIdx++) {
+        currLogEmi = OneCell3TrParam2DegPolyHMM::getTotalLogEmissionProb(stateIdx, currChrDepthsVec, chrIdx, depthIdx);
+        gsl_matrix_set(currChrLogEmissionMat, depthIdx, stateIdx, currLogEmi); // transposed
+        gsl_matrix_set(currChrEmissionMat, depthIdx, stateIdx, exp(currLogEmi)); // transposed
       }
     }
   }
@@ -77,7 +93,7 @@ void OneCellFixLib3TrParam2DegPolyHMM::updateTotalLogEmissionLookup() {
 
 void OneCellFixLib3TrParam2DegPolyHMM::setMeanVarianceFn(gsl_vector* meanVarianceCoefVec) {
   HMM::setMeanVarianceFn(meanVarianceCoefVec);
-  this->updateTotalLogEmissionLookup();
+  this->updateAllTotalEmissionLookup();
 }
 
 /*
