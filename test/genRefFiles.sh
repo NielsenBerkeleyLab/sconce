@@ -2,9 +2,9 @@
 
 # log of test file generation
 export windows="../../hg19/hg19_lite.250kb_windows"
-../simulations/sconce_sim infileA.txt paramfile.txt 0
-mkdir diploid
-mkdir cancer
+../simulations/sconce_sim infileA.txt paramfile.txt 0 > ref_sim.log 2>&1
+mkdir -p diploid
+mkdir -p cancer
 mv *healthy* diploid
 find . -maxdepth 1 -name "*_cancer_cell_[1-9]*" -exec mv {} cancer \;
 find . -name "*_cell_*[0-9]" | while read simu ; do
