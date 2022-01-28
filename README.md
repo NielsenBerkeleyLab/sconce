@@ -112,7 +112,7 @@ Using the test files from before produces the following plot:
 ```
 Rscript scripts/plotGenomeTrace.R test/test_healthy_avg.bed test/test_cancer_cell.bed test/test_output_k5.bed test/test_output_k5.png "Genome Trace for SCONCE (k=5)" test/true_cancer_cell.bed
 ```
-![reference genome trace](test/ref_plot_k5.png)
+![reference genome trace](test/ref_k5_simu_cancer_cell_0.png)
 
 
 ## Simulations
