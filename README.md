@@ -2,7 +2,7 @@
 
 This directory is for the program SCONCE (Single Cell cOpy Numbers in CancEr).
 
-Preprint at https://www.biorxiv.org/content/10.1101/2021.09.23.461581v1
+Published at "SCONCE: a method for profiling copy number alterations in cancer evolution using single-cell whole genome sequencing": https://doi.org/10.1093/bioinformatics/btac041
 
 ## Dependencies
 SCONCE is written in C++11, and requires
